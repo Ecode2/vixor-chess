@@ -53,6 +53,9 @@ export const actors = new Map<string, Actor>();
 /** Squares where a freshly mounted piece should materialise (promotion). */
 export const spawnFx = new Set<string>();
 
+/** Global render options mirrored from settings (read every frame). */
+export const renderOpts = { bases: false };
+
 export function createActor(id: string, kind: PieceSymbol, color: Color, rig: Rig): Actor {
   const seed = Math.random() * 1000;
   return {

@@ -13,7 +13,9 @@ export function dirEuler(x: number, y: number, z: number): [number, number, numb
 
 /** Tiered plinth with a gilded bead ring and studs. Every piece stands on one. */
 export function plinth(b: Builder, R: number) {
-  const P = b.body;
+  const P = b.group(b.body);
+  P.name = "base";
+  b.extras.base = P;
   b.mesh(
     P,
     geo.lathe(

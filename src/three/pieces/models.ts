@@ -148,118 +148,186 @@ function buildKnight(side: Side): Rig {
   const horseJ = b.joint("horse", F, pivot);
   const H = b.group(horseJ, [-pivot[0], -pivot[1], -pivot[2]]);
 
-  // barrel, chest, rump
-  b.mesh(H, geo.sphere(1, 28, 18), "body", { p: [0, 0.43, 0], s: [0.098, 0.105, 0.19] });
-  b.mesh(H, geo.sphere(0.1, 20, 14), "body", { p: [0, 0.425, 0.12], s: [1, 1.05, 0.95] });
-  b.mesh(H, geo.sphere(0.102, 20, 14), "body", { p: [0, 0.44, -0.12], s: [1, 1, 1] });
-
-  // caparison (horse cloth) drape - follows the barrel, leaves legs free
-  const capS: [number, number, number] = [0.9, 1, 1.62];
+  // ---- body: one sculpted lathe running rump -> chest (axis along +Z) ----
   b.mesh(
     H,
     geo.lathe(
       [
-        [0.112, 0.49],
-        [0.122, 0.44],
-        [0.13, 0.385],
-        [0.134, 0.345],
-        [0.13, 0.342],
+        [0, -0.215],
+        [0.055, -0.21],
+        [0.088, -0.185],
+        [0.103, -0.14],
+        [0.105, -0.07],
+        [0.1, 0.0],
+        [0.104, 0.07],
+        [0.101, 0.13],
+        [0.088, 0.18],
+        [0.055, 0.21],
+        [0, 0.218],
+      ],
+      36,
+    ),
+    "body",
+    { p: [0, 0.445, 0], r: [PI / 2, 0, 0], s: [0.9, 1, 1.08] },
+  );
+  for (const x of [-1, 1]) {
+    b.mesh(H, geo.sphere(0.072, 16, 12), "body", { p: [x * 0.042, 0.47, -0.135], s: [0.8, 1, 1.15] }); // croup
+    b.mesh(H, geo.sphere(0.06, 14, 10), "body", { p: [x * 0.045, 0.415, 0.15], s: [0.75, 1.15, 0.9] }); // chest muscle
+  }
+  b.mesh(H, geo.sphere(0.05, 14, 10), "body", { p: [0, 0.515, 0.1], s: [0.8, 0.8, 1.6] }); // withers
+
+  // caparison: draped over the back and rump, chest and legs left free
+  const capS: [number, number, number] = [0.93, 1, 1.55];
+  b.mesh(
+    H,
+    geo.lathe(
+      [
+        [0.1, 0.52],
+        [0.118, 0.48],
+        [0.126, 0.44],
+        [0.128, 0.405],
+        [0.124, 0.402],
       ],
       44,
+      PI / 2 + 0.55,
+      PI * 1.0,
     ),
     "cloth",
     { s: capS },
   );
-  b.mesh(H, geo.torus(0.134, 0.0055, 6, 48), "accent", { p: [0, 0.345, 0], r: [PI / 2, 0, 0], s: [capS[0], capS[2], 1] });
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * PI * 2;
-    b.mesh(H, geo.cone(0.008, 0.022, 4), "accent", {
-      p: [Math.sin(a) * 0.134 * capS[0], 0.333, Math.cos(a) * 0.134 * capS[2]],
-      r: [PI, 0, 0],
-    });
-  }
+  b.mesh(H, geo.torus(0.128, 0.005, 6, 40, PI), "accent", { p: [0, 0.405, 0], r: [PI / 2, 0, PI / 2 + 0.55], s: [capS[0], capS[2], 1] });
   for (const x of [-1, 1]) {
-    b.mesh(H, geo.extrude(shapes.chevron(0.034, 0.036, 0.014), 0.005, 0.0015), "accent", {
-      p: [x * 0.122, 0.405, -0.03],
+    b.mesh(H, geo.extrude(shapes.chevron(0.03, 0.032, 0.012), 0.005, 0.0015), "accent", {
+      p: [x * 0.118, 0.45, -0.1],
       r: [0, (x * PI) / 2, 0],
     });
   }
-  // saddle
-  b.mesh(H, geo.box(0.13, 0.03, 0.12), "dark", { p: [0, 0.535, -0.01] });
-  b.mesh(H, geo.box(0.1, 0.05, 0.015), "accent", { p: [0, 0.555, 0.05] });
-  b.mesh(H, geo.box(0.11, 0.06, 0.015), "accent", { p: [0, 0.56, -0.07] });
+  // saddle, girth, stirrup straps
+  b.mesh(H, geo.box(0.12, 0.028, 0.13), "dark", { p: [0, 0.548, -0.02] });
+  b.mesh(H, geo.box(0.1, 0.05, 0.015), "accent", { p: [0, 0.565, 0.045] });
+  b.mesh(H, geo.box(0.11, 0.065, 0.015), "accent", { p: [0, 0.57, -0.085] });
+  b.mesh(H, geo.torus(0.1, 0.006, 6, 32), "dark", { p: [0, 0.445, 0.03], r: [0, PI / 2, 0], s: [0.95, 1.08, 1] });
 
-  // neck & head
-  const neck = b.joint("neck", H, [0, 0.47, 0.16]);
-  b.mesh(neck, geo.capsule(0.056, 0.15), "body", { p: [0, 0.085, 0.03], r: [0.42, 0, 0] });
-  b.mesh(neck, geo.sphere(0.06, 14, 10), "body", { p: [0, 0.0, 0.0], s: [1, 1, 1.1] });
-  // mane: a crest of carved locks
-  for (let i = 0; i < 9; i++) {
-    const t = i / 8;
-    b.mesh(neck, geo.box(0.014, 0.05, 0.03), "body", {
-      p: [0, 0.03 + t * 0.19, -0.04 + t * 0.075],
-      r: [0.15 - t * 0.2, 0, (i % 2 ? 1 : -1) * 0.12],
-    });
-  }
-  // crinet plates on the crest
-  for (let i = 0; i < 4; i++) {
-    const t = i / 3;
-    b.mesh(neck, geo.box(0.07, 0.012, 0.04), "metal", { p: [0, 0.06 + t * 0.12, 0.05 + t * 0.03], r: [0.42 - PI / 2 + 0.2, 0, 0] });
-  }
-  const head = b.joint("hhead", neck, [0, 0.215, 0.09]);
-  b.mesh(head, geo.capsule(0.043, 0.1), "body", { p: [0, -0.015, 0.05], r: [1.95, 0, 0] });
-  b.mesh(head, geo.sphere(0.041, 16, 12), "body", { p: [0, -0.045, 0.12], s: [0.88, 0.85, 1.05] });
-  b.mesh(head, geo.sphere(0.046, 16, 12), "body", { p: [0, 0.008, 0.005], s: [0.95, 1, 1] });
-  for (const x of [-1, 1]) {
-    b.mesh(head, geo.cone(0.014, 0.055, 8), "body", { p: [x * 0.024, 0.05, -0.01], r: [-0.25, 0, -x * 0.28] });
-    b.mesh(head, geo.sphere(0.008, 8, 6), "dark", { p: [x * 0.038, 0.012, 0.035] });
-    b.mesh(head, geo.sphere(0.007, 6, 4), "dark", { p: [x * 0.015, -0.058, 0.155] });
-  }
-  // chanfron (armoured face plate) + bridle
-  b.mesh(head, geo.box(0.045, 0.01, 0.12), "metal", { p: [0, 0.024, 0.06], r: [0.38, 0, 0] });
-  b.mesh(head, geo.cone(0.009, 0.045, 8), "accent", { p: [0, 0.05, 0.04], r: [-0.55, 0, 0] });
-  for (const x of [-1, 1]) b.mesh(head, geo.torus(0.012, 0.004, 6, 12), "accent", { p: [x * 0.038, -0.045, 0.11], r: [0, PI / 2, 0] });
-  b.mesh(head, geo.torus(0.04, 0.004, 6, 24, PI), "accent", { p: [0, -0.04, 0.105], r: [0.35, 0, PI] });
-
-  // legs
-  const legs: [string, number, number, boolean][] = [
-    ["FL", 0.055, 0.13, true],
-    ["FR", -0.055, 0.13, true],
-    ["BL", 0.055, -0.13, false],
-    ["BR", -0.055, -0.13, false],
-  ];
-  for (const [n, x, z, front] of legs) {
-    const leg = b.joint(`leg${n}`, H, [x, 0.385, z]);
-    if (!front) b.mesh(leg, geo.sphere(0.055, 14, 10), "body", { p: [0, 0.01, -0.01], s: [0.6, 1, 1] });
-    b.mesh(leg, geo.capsule(front ? 0.028 : 0.032, 0.08), "body", { p: [0, -0.055, 0] });
-    const knee = b.joint(`knee${n}`, leg, [0, -0.115, 0]);
-    b.mesh(knee, geo.sphere(0.022, 10, 8), "body");
-    b.mesh(knee, geo.capsule(0.018, 0.07), "body", { p: [0, -0.05, 0] });
-    b.mesh(knee, geo.sphere(0.022, 10, 8), "body", { p: [0, -0.095, 0.004] });
-    b.mesh(knee, geo.cyl(0.021, 0.026, 0.028, 12), "dark", { p: [0, -0.113, 0.006] });
-  }
-
-  // tail
-  const tail = b.joint("tail", H, [0, 0.47, -0.21]);
+  // ---- neck: tapered, deep, arched ----
+  const neck = b.joint("neck", H, [0, 0.49, 0.15]);
   b.mesh(
-    tail,
-    geo.tube(
+    neck,
+    geo.lathe(
       [
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, -0.01, -0.05),
-        new THREE.Vector3(0, -0.08, -0.08),
-        new THREE.Vector3(0, -0.18, -0.07),
-        new THREE.Vector3(0, -0.24, -0.05),
+        [0.066, -0.02],
+        [0.062, 0.05],
+        [0.054, 0.12],
+        [0.046, 0.19],
+        [0.043, 0.235],
       ],
-      0.017,
       24,
-      8,
     ),
     "body",
+    { r: [0.55, 0, 0], s: [0.72, 1, 1.18] },
   );
+  b.mesh(neck, geo.capsule(0.03, 0.16, 4, 10), "body", { p: [0, 0.11, 0.025], r: [0.42, 0, 0], s: [0.9, 1, 1] }); // crest arch
+  // flowing mane, locks alternating sides
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const side = i % 2 ? 1 : -1;
+    b.mesh(neck, geo.box(0.008, 0.06, 0.022), "body", {
+      p: [side * 0.018, 0.015 + t * 0.2, -0.045 + t * 0.105],
+      r: [0.3 - t * 0.15, 0, side * 0.35],
+    });
+  }
+  // crinet (neck armour)
+  for (let i = 0; i < 4; i++) {
+    const t = i / 3;
+    b.mesh(neck, geo.box(0.064, 0.01, 0.04), "metal", { p: [0, 0.05 + t * 0.12, 0.075 + t * 0.012], r: [0.55 - PI / 2 + 0.15, 0, 0] });
+  }
+
+  // ---- head: wedge-shaped, cheek, muzzle, ears, forelock ----
+  const head = b.joint("hhead", neck, [0, 0.19, 0.115]);
+  b.mesh(
+    head,
+    geo.lathe(
+      [
+        [0, -0.012],
+        [0.036, 0],
+        [0.044, 0.03],
+        [0.04, 0.07],
+        [0.031, 0.105],
+        [0.029, 0.13],
+        [0.021, 0.147],
+        [0, 0.152],
+      ],
+      20,
+    ),
+    "body",
+    { r: [1.9, 0, 0], s: [0.78, 1, 1.05] },
+  );
+  b.mesh(head, geo.sphere(0.04, 14, 10), "body", { p: [0, -0.022, 0.018], s: [0.85, 1, 1.15] }); // cheek / jaw
+  for (const x of [-1, 1]) {
+    b.mesh(head, geo.cone(0.012, 0.05, 8), "body", { p: [x * 0.02, 0.04, -0.008], r: [-0.25, 0, -x * 0.25] });
+    b.mesh(head, geo.sphere(0.0075, 8, 6), "dark", { p: [x * 0.031, 0.008, 0.04] });
+    b.mesh(head, geo.sphere(0.0065, 6, 4), "dark", { p: [x * 0.013, -0.052, 0.142] });
+  }
+  b.mesh(head, geo.box(0.03, 0.045, 0.01), "body", { p: [0, 0.035, 0.02], r: [-0.4, 0, 0] }); // forelock
+  // chanfron (armoured face plate) + bridle
+  b.mesh(head, geo.box(0.04, 0.008, 0.11), "metal", { p: [0, 0.03, 0.065], r: [0.33, 0, 0] });
+  b.mesh(head, geo.cone(0.008, 0.04, 8), "accent", { p: [0, 0.05, 0.035], r: [-0.55, 0, 0] });
+  b.mesh(head, geo.torus(0.031, 0.0035, 6, 24), "accent", { p: [0, -0.036, 0.11], r: [0.33, 0, 0] });
+  for (const x of [-1, 1]) b.mesh(head, geo.torus(0.01, 0.003, 6, 12), "accent", { p: [x * 0.03, -0.04, 0.1], r: [0, PI / 2, 0] });
+
+  // ---- legs: forearm/gaskin -> knee/hock -> cannon -> fetlock -> pastern -> hoof ----
+  const legs: [string, number, number, boolean][] = [
+    ["FL", 0.052, 0.135, true],
+    ["FR", -0.052, 0.135, true],
+    ["BL", 0.052, -0.14, false],
+    ["BR", -0.052, -0.14, false],
+  ];
+  for (const [n, x, z, front] of legs) {
+    const leg = b.joint(`leg${n}`, H, [x, front ? 0.39 : 0.405, z]);
+    if (front) {
+      b.mesh(leg, geo.sphere(0.045, 12, 10), "body", { s: [0.6, 1.25, 0.9] });
+      b.mesh(leg, geo.cyl(0.03, 0.019, 0.12, 12), "body", { p: [0, -0.06, 0] });
+    } else {
+      b.mesh(leg, geo.sphere(0.065, 14, 10), "body", { p: [0, 0.01, -0.005], s: [0.58, 1.1, 1] });
+      b.mesh(leg, geo.cyl(0.03, 0.019, 0.115, 12), "body", { p: [0, -0.065, -0.02], r: [-0.35, 0, 0] });
+    }
+    const knee = b.joint(`knee${n}`, leg, front ? [0, -0.125, 0] : [0, -0.13, -0.045]);
+    b.mesh(knee, geo.sphere(0.02, 10, 8), "body", { s: [1, 1, 1.1] });
+    b.mesh(knee, geo.cyl(0.0155, 0.014, 0.08, 10), "body", { p: [0, -0.045, front ? 0 : 0.004], r: [front ? 0 : 0.08, 0, 0] });
+    b.mesh(knee, geo.sphere(0.0185, 10, 8), "body", { p: [0, -0.088, 0.004] });
+    b.mesh(knee, geo.cyl(0.013, 0.014, 0.03, 10), "body", { p: [0, -0.1, 0.009], r: [0.35, 0, 0] });
+    b.mesh(knee, geo.cyl(0.017, 0.022, 0.022, 14), "dark", { p: [0, -0.117, 0.014] });
+    // feathering above the hoof
+    b.mesh(knee, geo.cyl(0.02, 0.024, 0.012, 12), "body", { p: [0, -0.104, 0.012] });
+  }
+
+  // ---- tail: several flowing strands ----
+  const tail = b.joint("tail", H, [0, 0.49, -0.205]);
+  for (const [dx, dz, r] of [
+    [0, 0, 0.016],
+    [0.012, 0.01, 0.011],
+    [-0.012, 0.01, 0.011],
+    [0, -0.012, 0.01],
+  ] as const) {
+    b.mesh(
+      tail,
+      geo.tube(
+        [
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(dx * 0.3, -0.005, -0.045),
+          new THREE.Vector3(dx * 0.8, -0.08, -0.08 + dz),
+          new THREE.Vector3(dx * 1.4, -0.18, -0.075 + dz),
+          new THREE.Vector3(dx * 1.8, -0.26, -0.055 + dz),
+        ],
+        r,
+        24,
+        7,
+      ),
+      "body",
+    );
+  }
 
   // --- rider ---
-  const rider = b.joint("rider", H, [0, 0.54, -0.02]);
+  const rider = b.joint("rider", H, [0, 0.555, -0.025]);
   for (const x of [-1, 1]) {
     b.mesh(rider, geo.capsule(0.03, 0.08), "metal", { p: [x * 0.07, -0.015, 0.04], r: [1.95, 0, x * 0.25] });
     b.mesh(rider, geo.capsule(0.026, 0.08), "metal", { p: [x * 0.135, -0.09, 0.075], r: [0.15, 0, x * 0.12] });

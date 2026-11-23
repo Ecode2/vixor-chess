@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import type { Actor } from "./actors";
+import { renderOpts, type Actor } from "./actors";
+import { BASE_TOP } from "../pieces/parts";
 import type { Rig } from "../pieces/kit";
 
 /* ------------------------------------------------------------------ */
@@ -123,7 +124,9 @@ export function updateActor(a: Actor, dt: number) {
   rig.root.position.copy(a.pos);
   rig.root.rotation.y = a.yaw + a.spin;
   const hover = a.ready * (0.07 + Math.sin(a.time * 3) * 0.015) + (a.hovered && !a.selected ? 0.025 : 0);
-  rig.body.position.y = a.lift + hover;
+  const base = rig.extras.base as THREE.Object3D | undefined;
+  if (base) base.visible = renderOpts.bases;
+  rig.body.position.y = a.lift + hover + (base && !renderOpts.bases ? -BASE_TOP : 0) + (rig.extras.groundOffset as number | undefined ?? 0);
   rig.body.rotation.set(a.pitch, 0, a.roll);
   rig.body.scale.setScalar(a.scale * a.appear);
 

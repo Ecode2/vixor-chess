@@ -532,9 +532,9 @@ class FXManager {
       mat: THREE.Material;
     }[] = [];
     const glowColor = new THREE.Color(style === "holy" ? "#ffd98a" : style === "arcane" ? (actor.color === "w" ? "#b06bff" : "#7fd7ff") : "#ff7a2a");
-    root.traverse((o) => {
+    root.traverseVisible((o) => {
       const m = o as THREE.Mesh;
-      if (!m.isMesh || !m.visible) return;
+      if (!m.isMesh) return;
       const src = m.material as THREE.Material;
       const mat = src.clone();
       mat.transparent = true;

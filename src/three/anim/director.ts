@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { MoveEvent, Square } from "@/game/types";
 import { homeYaw, squareToXZ, yawTowards } from "@/game/coords";
-import { actors, spawnFx, type Actor, type Loco } from "./actors";
+import { actors, renderOpts, spawnFx, type Actor, type Loco } from "./actors";
 import { ease, timeline as tl } from "./timeline";
 import { fx } from "../fx/fx";
 import { sfx } from "@/audio/sfx";
@@ -506,7 +506,7 @@ export async function aftermath(kind: "check" | "checkmate" | "stalemate" | "dra
     // the king topples
     const dir = Math.random() < 0.5 ? 1 : -1;
     // pivot about the plinth's edge rather than its centre
-    const R = 0.37;
+    const R = renderOpts.bases ? 0.37 : 0.25;
     await tl.tween(0.9, (t) => {
       k.roll = dir * t * t * (Math.PI / 2 - 0.12);
       k.lift = Math.sin(Math.abs(k.roll)) * R;

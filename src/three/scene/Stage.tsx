@@ -9,6 +9,7 @@ import { ToneMappingMode } from "postprocessing";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useGame, isGameOver } from "@/game/store";
 import { timeline } from "../anim/timeline";
+import { renderOpts } from "../anim/actors";
 import { fx } from "../fx/fx";
 import { aftermath, perform } from "../anim/director";
 import { applyArmyStyle, materials } from "../pieces/materials";
@@ -181,6 +182,10 @@ function Shaker({ children }: { children: React.ReactNode }) {
 /** Keeps the shared army materials in sync with each player's chosen colours. */
 function ArmyStyler() {
   const armies = useGame((s) => s.settings.armies);
+  const bases = useGame((s) => s.settings.bases);
+  useEffect(() => {
+    renderOpts.bases = bases;
+  }, [bases]);
   useEffect(() => {
     applyArmyStyle("w", armies.w);
     applyArmyStyle("b", armies.b);
