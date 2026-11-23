@@ -3,6 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { buildRig } from "../pieces/models";
+import { useModels } from "../external/loader";
+import { buildExternalRig } from "../external/externalRig";
 import { actors, createActor, spawnFx } from "../anim/actors";
 import { updateActor } from "../anim/animators";
 import { homeYaw, squareToXZ } from "@/game/coords";
@@ -13,7 +15,17 @@ import { fx } from "../fx/fx";
 import { sideGlow } from "../pieces/materials";
 
 function Piece({ data }: { data: PieceData }) {
-  const rig = useMemo(() => buildRig(data.kind, data.color), [data.kind, data.color]);
+  const prepared = useModels((s) => s.pieces[data.kind]);
+  const rig = useMemo(() => {
+    if (prepared) {
+      try {
+        return buildExternalRig(data.kind, data.color, prepared);
+      } catch (e) {
+        console.error(`[models] could not build ${data.kind}, using procedural`, e);
+      }
+    }
+    return buildRig(data.kind, data.color);
+  }, [data.kind, data.color, prepared]);
   const actor = useMemo(() => createActor(data.id, data.kind, data.color, rig), [data.id, data.kind, data.color, rig]);
   const selected = useGame((s) => s.selected === data.square);
   const clickSquare = useGame((s) => s.clickSquare);
@@ -89,6 +101,8 @@ function Piece({ data }: { data: PieceData }) {
 
 export function Pieces() {
   const pieces = useGame((s) => s.pieces);
+  const status = useModels((s) => s.status);
+  if (status === "loading") return null;
   return (
     <group>
       {pieces.map((p) => (

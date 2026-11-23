@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { renderOpts, type Actor } from "./actors";
 import { BASE_TOP } from "../pieces/parts";
+import { animateExternal } from "../external/externalRig";
 import type { Rig } from "../pieces/kit";
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +131,10 @@ export function updateActor(a: Actor, dt: number) {
   rig.body.rotation.set(a.pitch, 0, a.roll);
   rig.body.scale.setScalar(a.scale * a.appear);
 
+  if (rig.extras.external) {
+    animateExternal(a, rig, dt);
+    return;
+  }
   reset(rig);
   ANIMATORS[a.kind](a, rig, dt);
 }

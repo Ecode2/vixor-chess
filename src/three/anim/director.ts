@@ -6,6 +6,7 @@ import { ease, timeline as tl } from "./timeline";
 import { fx } from "../fx/fx";
 import { sfx } from "@/audio/sfx";
 import { sideGlow } from "../pieces/materials";
+import type { ExternalRigData } from "../external/externalRig";
 
 /* ------------------------------------------------------------------ */
 /* primitives                                                          */
@@ -82,7 +83,24 @@ async function travel(a: Actor, to: THREE.Vector3, o: TravelOpts) {
   a.loco = "none";
 }
 
-function play(a: Actor, name: string, dur: number, events: [number, () => void][] = []) {
+/** Timing of a real skeletal clip, if this piece uses an external model. */
+function clipInfo(a: Actor, key: string): { duration: number; hitAt: number } | undefined {
+  const ext = a.rig.extras.external as ExternalRigData | undefined;
+  return ext?.clipInfo[key as keyof ExternalRigData["clipInfo"]];
+}
+
+/**
+ * Play an action. `hitRef` is where the impact sits in the built-in timing;
+ * for external models the events are re-timed so the impact lands on the
+ * clip's own `hitAt`, and the duration follows the clip.
+ */
+function play(a: Actor, name: string, dur: number, events: [number, () => void][] = [], hitRef?: number) {
+  const info = hitRef !== undefined ? clipInfo(a, name) : undefined;
+  if (info && hitRef !== undefined) {
+    const hit = Math.min(0.95, Math.max(0.05, info.hitAt));
+    dur = Math.min(3.2, Math.max(0.6, info.duration));
+    events = events.map(([t, fn]) => [t <= hitRef ? (t * hit) / hitRef : hit + ((t - hitRef) * (1 - hit)) / (1 - hitRef), fn]);
+  }
   a.action = name;
   const fired = new Set<number>();
   return tl
@@ -224,7 +242,7 @@ const pawnCapture: Capture = async (a, v, to) => {
         fx.addShake(0.15);
       },
     ],
-  ]);
+  ], 0.47);
   await travel(a, to, { dur: 0.5, loco: "walk", stride: 9, onStep: sfx.step });
 };
 
@@ -251,7 +269,7 @@ const knightCapture: Capture = async (a, v, to) => {
         fx.addShake(0.35);
       },
     ],
-  ]);
+  ], 0.57);
   await travel(a, to, { dur: 0.45, loco: "gallop", stride: 6, arc: 0.25 });
   fx.dust(a.pos, 0.5);
 };
@@ -327,7 +345,7 @@ const rookCapture: Capture = async (a, v, to) => {
         });
       },
     ],
-  ]);
+  ], 0.36);
   await moveNormally(a, to);
 };
 
@@ -392,7 +410,7 @@ const kingCapture: Capture = async (a, v, to) => {
         fx.addShake(0.5);
       },
     ],
-  ]);
+  ], 0.55);
   await travel(a, to, { dur: 0.6, loco: "walk", stride: 6, bob: 0.02, onStep: () => sfx.thud(0.4) });
 };
 
@@ -503,6 +521,22 @@ export async function aftermath(kind: "check" | "checkmate" | "stalemate" | "dra
     const kx = k.pos.x, kz = k.pos.z;
     await hold(k, "brace", 1, 0.3);
     await tl.wait(0.4);
+    const death = clipInfo(k, "death");
+    if (death) {
+      // real death animation, held on its last frame
+      sfx.whoosh();
+      await hold(k, "death", 1, Math.min(3, death.duration));
+      sfx.thud(1.5);
+      sfx.crumble();
+      fx.dust(k.pos, 1.5);
+      fx.addShake(0.4);
+      sfx.victory();
+      for (const id of winners) {
+        const w = actors.get(id);
+        if (w) play(w, "cheer", 2.5 + Math.random() * 0.8);
+      }
+      return;
+    }
     // the king topples
     const dir = Math.random() < 0.5 ? 1 : -1;
     // pivot about the plinth's edge rather than its centre

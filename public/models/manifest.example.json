@@ -1,0 +1,65 @@
+{
+  "version": 1,
+
+  "animationLibrary": {
+    "idle": "anims/Sword And Shield Idle.fbx",
+    "walk": "anims/Sword And Shield Walk.fbx",
+    "run": "anims/Sword And Shield Run.fbx",
+    "slash": { "src": "anims/Sword And Shield Slash.fbx", "hitAt": 0.45 },
+    "block": "anims/Sword And Shield Block.fbx",
+    "hit": "anims/Sword And Shield Impact.fbx",
+    "death": "anims/Sword And Shield Death.fbx",
+    "victory": "anims/Victory.fbx",
+    "cast": { "src": "anims/Standing 2H Magic Attack 01.fbx", "hitAt": 0.5 },
+    "greatSlam": { "src": "anims/Great Sword Slash.fbx", "hitAt": 0.5 },
+    "lookAround": "anims/Look Around.fbx"
+  },
+
+  "pieces": {
+    "p": {
+      "model": "pawn/Knight D Pelegrini.fbx",
+      "clips": { "idle": "@idle", "walk": "@walk", "run": "@run", "attack": "@slash", "block": "@block", "hit": "@hit", "death": "@death", "victory": "@victory", "idleAlt": "@lookAround" },
+      "props": [{ "builtin": "sword", "bone": "RightHand" }, { "builtin": "shield", "bone": "LeftForeArm" }]
+    },
+
+    "n": {
+      "model": "knight/horse.glb",
+      "height": 0.95,
+      "clips": { "idle": "Idle", "walk": "Walk", "run": "Gallop", "attack": { "src": "Rear", "hitAt": 0.6 } },
+      "rider": {
+        "model": "knight/Paladin J Nordstrom.fbx",
+        "height": 0.8,
+        "attachTo": "Spine",
+        "seat": [0, 0.12, -0.04],
+        "clips": { "idle": "anims/Riding Idle.fbx", "attack": "@slash" },
+        "props": [{ "builtin": "mace", "bone": "RightHand" }]
+      }
+    },
+
+    "b": {
+      "model": "bishop/bishop-rigged.fbx",
+      "materialMap": { "robe|cloth": "cloth", "gold|trim": "accent" },
+      "clips": { "idle": "@idle", "walk": "anims/Walking.fbx", "cast": "@cast", "hit": "@hit", "death": "@death", "victory": "@victory" },
+      "props": [{ "builtin": "mitre", "bone": "Head" }, { "builtin": "crosier", "bone": "LeftHand" }]
+    },
+
+    "q": {
+      "model": "queen/queen-rigged.fbx",
+      "materialMap": { "dress|cape": "cloth", "crown|jewel": "accent" },
+      "clips": { "idle": "@idle", "walk": "anims/Female Walk.fbx", "cast": "@cast", "hit": "@hit", "death": "@death", "victory": "@victory" },
+      "props": [{ "builtin": "crown", "bone": "Head" }, { "builtin": "sceptre", "bone": "RightHand" }]
+    },
+
+    "k": {
+      "model": "king/king-rigged.fbx",
+      "materialMap": { "cape|robe": "cloth", "fur": "fur", "gold": "accent" },
+      "clips": { "idle": "@idle", "walk": "@walk", "attack": "@greatSlam", "hit": "@hit", "death": "@death", "victory": "@victory" },
+      "props": [{ "builtin": "kingCrown", "bone": "Head" }, { "builtin": "greatsword", "bone": "RightHand" }]
+    }
+  },
+
+  "credits": [
+    { "title": "Characters & animations", "author": "Mixamo (Adobe)", "url": "https://www.mixamo.com" },
+    { "title": "Medieval Horse (example)", "author": "Author name", "url": "https://sketchfab.com/...", "license": "CC-BY 4.0" }
+  ]
+}

@@ -6,6 +6,7 @@ import type { ArmyStyle, Color, PieceSymbol, PlayerType } from "@/game/types";
 import { ARMY_PRESETS, PRESET_IDS } from "@/game/armies";
 import { ENGINES } from "@/engine";
 import { unlockAudio } from "@/audio/sfx";
+import { useModels } from "@/three/external/loader";
 
 const GLYPH: Record<PieceSymbol, string> = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
 const NAME: Record<PieceSymbol, string> = { k: "King", q: "Queen", r: "Rook", b: "Bishop", n: "Knight", p: "Pawn" };
@@ -185,6 +186,10 @@ function Settings({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
+          <Credits />
+          <p className="note">
+            Chess engine: Stockfish 18 (GPLv3) · <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noreferrer">source</a>
+          </p>
         </>
       )}
       {tab === "armies" && (
@@ -348,6 +353,51 @@ function GameOver() {
 
 /* ------------------------------------------------------------------ */
 
+function Loading() {
+  const status = useModels((s) => s.status);
+  const progress = useModels((s) => s.progress);
+  return (
+    <div className="loading">
+      <div className="brand-mark big">V</div>
+      <div className="loading-text">{status === "loading" ? `Summoning the armies… ${Math.round(progress * 100)}%` : "Forging the armies…"}</div>
+    </div>
+  );
+}
+
+function ModelNotice() {
+  const error = useModels((s) => s.error);
+  const [hidden, setHidden] = useState(false);
+  if (!error || hidden) return null;
+  return (
+    <div className="model-notice" onClick={() => setHidden(true)}>
+      {error} <span className="muted">(tap to dismiss)</span>
+    </div>
+  );
+}
+
+function Credits() {
+  const credits = useModels((s) => s.credits);
+  if (!credits.length) return null;
+  return (
+    <div className="credits">
+      <div className="panel-label">Model credits</div>
+      {credits.map((c, i) => (
+        <div key={i}>
+          {c.url ? (
+            <a href={c.url} target="_blank" rel="noreferrer">
+              {c.title}
+            </a>
+          ) : (
+            c.title
+          )}{" "}
+          by {c.author}
+          {c.license ? ` · ${c.license}` : ""}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Hud({ ready }: { ready: boolean }) {
   const [showSettings, setShowSettings] = useState(false);
   const panelOpen = useGame((s) => s.panelOpen);
@@ -424,12 +474,8 @@ export function Hud({ ready }: { ready: boolean }) {
       <Promotion />
       <GameOver />
 
-      {!ready && (
-        <div className="loading">
-          <div className="brand-mark big">V</div>
-          <div className="loading-text">Forging the armies…</div>
-        </div>
-      )}
+      {!ready && <Loading />}
+      <ModelNotice />
     </div>
   );
 }

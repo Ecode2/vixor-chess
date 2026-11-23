@@ -39,10 +39,25 @@ needed (framework preset: Next.js).
 - Click one of your pieces, then a highlighted square. Gold dots are moves,
   red frames are captures.
 - Drag to orbit the camera, scroll/pinch to zoom.
-- **Settings** - battle speed, cinematic captures on/off, camera follow,
-  legal-move hints, sound, graphics quality (Cinematic / Performance).
-- Each side can be set to **Human** or **Training Dummy** (a random-move bot
-  that proves the engine plumbing works).
+- **Hint** asks Stockfish for the best move and highlights it.
+- **Settings**
+  - *Game*: battle speed, cinematic captures, camera follow, legal-move hints,
+    bases on/off, sound, graphics quality (Cinematic / Performance).
+  - *Armies*: each player picks a preset (Royal, Classic ivory & obsidian,
+    Gilded, Verdant, Frost, Infernal) or their own stone / trim / cloth / glow
+    colours. Saved in the browser.
+  - *Engine*: Stockfish strength (≈1320 Elo up to full strength) and think time.
+- Each side can be **Human**, **Stockfish** or **Training Dummy** (random
+  moves). Set both to an engine to watch a battle.
+
+## Custom models (realistic pieces)
+
+Put rigged GLB/FBX models (e.g. Mixamo characters + animations, Sketchfab
+sculpts) in `public/models/` with a `manifest.json` and they replace the
+procedural pieces, with walking, attacks, hit reactions, death, victory,
+army colours and real-geometry dismantling. See
+[`public/models/README.md`](public/models/README.md) and
+`public/models/manifest.example.json`.
 
 ## Project layout
 
@@ -76,9 +91,14 @@ src/
    cleave.
 5. When the choreography resolves, the store commits the new board.
 
-## Adding a chess engine later
+## Chess engine
 
-Everything goes through `src/engine/types.ts`:
+Stockfish 18 (lite, single-threaded WebAssembly, ~7 MB) runs in a Web Worker in
+the player's browser, so it needs no server and no special headers on Vercel.
+`scripts/copy-engine.mjs` copies it from `node_modules/stockfish` into
+`public/engines/` before `dev` and `build`.
+
+Engines plug in through `src/engine/types.ts`:
 
 ```ts
 interface ChessEngine {
@@ -90,11 +110,10 @@ interface ChessEngine {
 }
 ```
 
-To add Stockfish: put the WASM build in `public/engines/`, write
-`stockfishEngine.ts` that talks UCI to it over `postMessage` in a Web Worker,
-and flip the `stockfish` entry in `src/engine/index.ts` to `available: true`.
-The store already asks the engine for a move whenever it is an engine-controlled
-side's turn, and `loadFen()` exists for puzzles/analysis.
+Register new ones in `src/engine/index.ts`.
+
+Stockfish is GPLv3. Its licence ships at `/engines/STOCKFISH-LICENSE.txt` and
+the source link is shown in Settings.
 
 ## Debugging
 

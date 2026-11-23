@@ -301,7 +301,7 @@ function normaliseGeometry(g: THREE.BufferGeometry, matrix: THREE.Matrix4) {
   return out;
 }
 
-function optimize(root: THREE.Object3D) {
+export function optimize(root: THREE.Object3D) {
   const parents: THREE.Object3D[] = [];
   root.traverse((o) => parents.push(o));
   for (const parent of parents) {

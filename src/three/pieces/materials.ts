@@ -114,6 +114,74 @@ export function applyArmyStyle(side: Side, style: { body: string; accent: string
   const lum = body.r * 0.3 + body.g * 0.59 + body.b * 0.11;
   (m.fur as THREE.MeshStandardMaterial).color.copy(body).lerp(new THREE.Color(lum > 0.4 ? "#ffffff" : "#77777f"), 0.5);
   sideGlow[side] = style.glow;
+  // keep materials derived for external models in sync
+  for (const d of derived[side]) syncDerived(side, d);
+}
+
+/* ------------------------------------------------------------------ */
+/* Materials derived for external (GLB/FBX) models                      */
+/* ------------------------------------------------------------------ */
+
+interface Derived {
+  slot: Slot;
+  mode: "statue" | "tint";
+  mat: THREE.MeshStandardMaterial;
+  baseColor?: THREE.Color;
+}
+
+const derived: Record<Side, Derived[]> = { w: [], b: [] };
+const derivedCache = new Map<string, THREE.Material>();
+
+function syncDerived(side: Side, d: Derived) {
+  const base = materials(side)[d.slot] as THREE.MeshStandardMaterial;
+  if (d.mode === "statue") {
+    d.mat.color.copy(base.color);
+    if (d.slot === "glow") d.mat.emissive.copy(base.emissive);
+  } else if (d.baseColor) {
+    d.mat.color.copy(d.baseColor).multiply(base.color).multiplyScalar(1.4);
+  }
+}
+
+/**
+ * statue: the army's own material for `slot`, but keeping the model's normal
+ *         and AO maps so sculpted detail survives.
+ * tint:   the model's material with its colour multiplied by the army colour.
+ */
+export function deriveMaterial(side: Side, slot: Slot, original: THREE.Material, mode: "statue" | "tint"): THREE.Material {
+  const key = `${side}|${slot}|${mode}|${original.uuid}`;
+  const hit = derivedCache.get(key);
+  if (hit) return hit;
+  const src = original as THREE.MeshStandardMaterial;
+  let mat: THREE.MeshStandardMaterial;
+  let baseColor: THREE.Color | undefined;
+  if (mode === "statue") {
+    mat = (materials(side)[slot] as THREE.MeshStandardMaterial).clone();
+    if (src.normalMap) {
+      mat.normalMap = src.normalMap;
+      mat.normalScale = src.normalScale?.clone() ?? new THREE.Vector2(1, 1);
+    }
+    if (src.aoMap) mat.aoMap = src.aoMap;
+  } else {
+    const std = new THREE.MeshStandardMaterial();
+    std.map = src.map ?? null;
+    std.normalMap = src.normalMap ?? null;
+    std.roughnessMap = src.roughnessMap ?? null;
+    std.metalnessMap = src.metalnessMap ?? null;
+    std.aoMap = src.aoMap ?? null;
+    std.roughness = src.roughness ?? 0.6;
+    std.metalness = src.metalness ?? 0;
+    std.transparent = src.transparent;
+    std.alphaTest = src.alphaTest;
+    std.side = src.side;
+    baseColor = (src.color ?? new THREE.Color(1, 1, 1)).clone();
+    mat = std;
+  }
+  mat.name = `${original.name}|${side}|${slot}`;
+  const d: Derived = { slot, mode, mat, baseColor };
+  derived[side].push(d);
+  syncDerived(side, d);
+  derivedCache.set(key, mat);
+  return mat;
 }
 
 /** Current glow colour per side (used by effects). */

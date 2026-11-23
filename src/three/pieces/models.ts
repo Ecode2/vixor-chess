@@ -652,7 +652,7 @@ function buildRook(side: Side): Rig {
 /* QUEEN - sorceress-queen with crown, high collar, cape and sceptre   */
 /* ================================================================== */
 
-function crownRing(b: Builder, parent: THREE.Object3D, r: number, h: number, points: number, pointH: number) {
+export function crownRing(b: Builder, parent: THREE.Object3D, r: number, h: number, points: number, pointH: number) {
   b.mesh(
     parent,
     geo.lathe(

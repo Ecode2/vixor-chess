@@ -532,20 +532,22 @@ class FXManager {
       mat: THREE.Material;
     }[] = [];
     const glowColor = new THREE.Color(style === "holy" ? "#ffd98a" : style === "arcane" ? (actor.color === "w" ? "#b06bff" : "#7fd7ff") : "#ff7a2a");
-    root.traverseVisible((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      const src = m.material as THREE.Material;
-      const mat = src.clone();
+    // External (skinned) models are baked in their current pose and cut into
+    // spatial fragments of real geometry; procedural pieces fly apart by part.
+    const sources = actor.rig.extras.external ? bakeFragments(root) : partSources(root);
+    const owned: THREE.BufferGeometry[] = [];
+    for (const srcPart of sources) {
+      if (srcPart.owned) owned.push(srcPart.geometry);
+      const mat = srcPart.material.clone();
       mat.transparent = true;
-      const mesh = new THREE.Mesh(m.geometry, mat);
-      m.matrixWorld.decompose(mesh.position, mesh.quaternion, mesh.scale);
+      const mesh = new THREE.Mesh(srcPart.geometry, mat);
+      srcPart.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
       mesh.castShadow = true;
       this.group.add(mesh);
       // world-space centre of this chunk
       const bc = new THREE.Vector3();
-      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
-      bc.copy(m.geometry.boundingSphere!.center).applyMatrix4(m.matrixWorld);
+      if (!srcPart.geometry.boundingSphere) srcPart.geometry.computeBoundingSphere();
+      bc.copy(srcPart.geometry.boundingSphere!.center).applyMatrix4(srcPart.matrix);
       const out = bc.clone().sub(center);
       out.y *= 0.3;
       out.normalize();
@@ -581,7 +583,7 @@ class FXManager {
           break;
       }
       chunks.push({ mesh, vel, ang, mat });
-    });
+    }
     root.visible = false;
     actor.dead = true;
 
@@ -634,6 +636,7 @@ class FXManager {
           this.group.remove(c.mesh);
           c.mat.dispose();
         }
+        owned.forEach((g) => g.dispose());
       },
     });
 
@@ -654,3 +657,91 @@ class FXManager {
 }
 
 export const fx = new FXManager();
+
+/* ------------------------------------------------------------------ */
+/* fragment sources                                                    */
+/* ------------------------------------------------------------------ */
+
+interface FragmentSource {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
+  matrix: THREE.Matrix4;
+  owned: boolean;
+}
+
+function firstMaterial(m: THREE.Mesh) {
+  return (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.Material;
+}
+
+/** Procedural pieces: every visible part becomes a fragment. */
+function partSources(root: THREE.Object3D): FragmentSource[] {
+  const out: FragmentSource[] = [];
+  root.traverseVisible((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh) out.push({ geometry: m.geometry, material: firstMaterial(m), matrix: m.matrixWorld.clone(), owned: false });
+  });
+  return out;
+}
+
+/**
+ * Bake every (skinned) mesh in its current animated pose into world space
+ * and cut it into a 3D grid of fragments made of its actual triangles.
+ */
+function bakeFragments(root: THREE.Object3D): FragmentSource[] {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const cell = Math.max(0.07, size.y / 9);
+  const v = new THREE.Vector3();
+  const out: FragmentSource[] = [];
+  root.traverseVisible((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || !m.geometry.attributes.position) return;
+    const g = m.geometry;
+    const pos = g.attributes.position;
+    const skinned = (m as THREE.SkinnedMesh).isSkinnedMesh;
+    const world = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      if (skinned) (m as THREE.SkinnedMesh).getVertexPosition(i, v);
+      else v.fromBufferAttribute(pos, i);
+      v.applyMatrix4(m.matrixWorld);
+      world[i * 3] = v.x;
+      world[i * 3 + 1] = v.y;
+      world[i * 3 + 2] = v.z;
+    }
+    const idx = g.index;
+    const tris = idx ? idx.count / 3 : pos.count / 3;
+    const step = Math.max(1, Math.ceil(tris / 30000));
+    const buckets = new Map<string, number[]>();
+    for (let t = 0; t < tris; t += step) {
+      const a = idx ? idx.getX(t * 3) : t * 3;
+      const b = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+      const c = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+      const cx = (world[a * 3] + world[b * 3] + world[c * 3]) / 3;
+      const cy = (world[a * 3 + 1] + world[b * 3 + 1] + world[c * 3 + 1]) / 3;
+      const cz = (world[a * 3 + 2] + world[b * 3 + 2] + world[c * 3 + 2]) / 3;
+      const key = `${Math.floor(cx / cell)},${Math.floor(cy / cell)},${Math.floor(cz / cell)}`;
+      let arr = buckets.get(key);
+      if (!arr) buckets.set(key, (arr = []));
+      for (const i of [a, b, c]) arr.push(world[i * 3], world[i * 3 + 1], world[i * 3 + 2]);
+    }
+    const material = firstMaterial(m);
+    for (const arr of buckets.values()) {
+      if (arr.length < 9) continue;
+      const center = new THREE.Vector3();
+      for (let i = 0; i < arr.length; i += 3) center.x += arr[i], center.y += arr[i + 1], center.z += arr[i + 2];
+      center.divideScalar(arr.length / 3);
+      const f = new Float32Array(arr.length);
+      for (let i = 0; i < arr.length; i += 3) {
+        f[i] = arr[i] - center.x;
+        f[i + 1] = arr[i + 1] - center.y;
+        f[i + 2] = arr[i + 2] - center.z;
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.BufferAttribute(f, 3));
+      geom.setAttribute("uv", new THREE.BufferAttribute(new Float32Array((f.length / 3) * 2), 2));
+      geom.computeVertexNormals();
+      out.push({ geometry: geom, material, matrix: new THREE.Matrix4().makeTranslation(center.x, center.y, center.z), owned: true });
+    }
+  });
+  return out;
+}

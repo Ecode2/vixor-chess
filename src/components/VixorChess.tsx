@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { startModelLibrary, useModels } from "@/three/external/loader";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Stage } from "@/three/scene/Stage";
@@ -12,6 +13,8 @@ if (typeof window !== "undefined") (window as unknown as { __vixor: unknown })._
 
 export default function VixorChess() {
   const [ready, setReady] = useState(false);
+  const modelStatus = useModels((s) => s.status);
+  useEffect(() => startModelLibrary(), []);
   return (
     <main className="app">
       <Canvas
@@ -26,7 +29,7 @@ export default function VixorChess() {
           <Stage />
         </Suspense>
       </Canvas>
-      <Hud ready={ready} />
+      <Hud ready={ready && modelStatus !== "loading"} />
     </main>
   );
 }
