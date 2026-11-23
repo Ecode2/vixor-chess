@@ -10,7 +10,17 @@ export interface PieceData {
   square: Square;
 }
 
-export type PlayerType = "human" | "engine";
+/** "human" or the id of a registered engine (see src/engine/index.ts). */
+export type PlayerType = "human" | "random" | "stockfish";
+
+/** Per-side colour scheme for an army. */
+export interface ArmyStyle {
+  preset: string;
+  body: string;
+  accent: string;
+  cloth: string;
+  glow: string;
+}
 
 export type GameStatus =
   | { kind: "playing" }
@@ -39,4 +49,11 @@ export interface Settings {
   quality: "high" | "low";
   sound: boolean;
   showHints: boolean;
+  /** Stockfish strength 0..20 */
+  engineSkill: number;
+  /** Engine think time per move (ms) */
+  engineThinkMs: number;
+  /** Show plinths under the (procedural) pieces */
+  bases: boolean;
+  armies: Record<"w" | "b", ArmyStyle>;
 }

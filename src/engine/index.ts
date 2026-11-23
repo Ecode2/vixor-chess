@@ -1,13 +1,12 @@
 import type { ChessEngine, EngineDescriptor } from "./types";
 import { RandomEngine } from "./randomEngine";
+import { StockfishEngine } from "./stockfishEngine";
 
 export type { ChessEngine, EngineDescriptor, EngineMove, EngineSearchOptions } from "./types";
 
 /**
- * Engine registry. To add Stockfish later:
- *  1. `npm i stockfish` (or drop stockfish.wasm + worker into /public/engines)
- *  2. create `stockfishEngine.ts` implementing ChessEngine (UCI over postMessage)
- *  3. add a descriptor below with available: true
+ * Engine registry. To add another engine, implement ChessEngine and add a
+ * descriptor here (and its id to PlayerType in src/game/types.ts).
  */
 export const ENGINES: EngineDescriptor[] = [
   {
@@ -19,25 +18,38 @@ export const ENGINES: EngineDescriptor[] = [
   },
   {
     id: "stockfish",
-    name: "Stockfish (coming soon)",
-    description: "World-class engine via WebAssembly. Placeholder - not wired yet.",
-    available: false,
-    create: () => {
-      throw new Error("Stockfish engine not implemented yet");
-    },
+    name: "Stockfish 18",
+    description: "World-class engine compiled to WebAssembly, running in your browser.",
+    available: true,
+    create: () => new StockfishEngine(),
   },
 ];
 
 const instances = new Map<string, ChessEngine>();
 
-export async function getEngine(id: string): Promise<ChessEngine> {
-  let e = instances.get(id);
-  if (!e) {
+const pending = new Map<string, Promise<ChessEngine>>();
+
+export function getEngine(id: string): Promise<ChessEngine> {
+  const done = instances.get(id);
+  if (done) return Promise.resolve(done);
+  let p = pending.get(id);
+  if (!p) {
     const d = ENGINES.find((x) => x.id === id && x.available);
-    if (!d) throw new Error(`Engine ${id} unavailable`);
-    e = d.create();
-    await e.init();
-    instances.set(id, e);
+    if (!d) return Promise.reject(new Error(`Engine ${id} unavailable`));
+    const e = d.create();
+    p = e.init().then(
+      () => {
+        instances.set(id, e);
+        pending.delete(id);
+        return e;
+      },
+      (err) => {
+        pending.delete(id);
+        e.dispose();
+        throw err;
+      },
+    );
+    pending.set(id, p);
   }
-  return e;
+  return p;
 }

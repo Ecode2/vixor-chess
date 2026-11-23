@@ -11,7 +11,7 @@ import { useGame, isGameOver } from "@/game/store";
 import { timeline } from "../anim/timeline";
 import { fx } from "../fx/fx";
 import { aftermath, perform } from "../anim/director";
-import { materials } from "../pieces/materials";
+import { applyArmyStyle, materials } from "../pieces/materials";
 import { glowTexture, smokeTexture } from "../textures";
 import { setSoundEnabled } from "@/audio/sfx";
 import { Board } from "./Board";
@@ -178,6 +178,16 @@ function Shaker({ children }: { children: React.ReactNode }) {
   return <group ref={g}>{children}</group>;
 }
 
+/** Keeps the shared army materials in sync with each player's chosen colours. */
+function ArmyStyler() {
+  const armies = useGame((s) => s.settings.armies);
+  useEffect(() => {
+    applyArmyStyle("w", armies.w);
+    applyArmyStyle("b", armies.b);
+  }, [armies]);
+  return null;
+}
+
 /** Exposes the three state for console debugging (window.__vixor.three). */
 function DebugHook() {
   const state = useThree();
@@ -282,6 +292,7 @@ export function Stage() {
 
       <CameraRig />
       <Prewarm />
+      <ArmyStyler />
       <DebugHook />
       <Shaker>
         <Board />

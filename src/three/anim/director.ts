@@ -5,6 +5,7 @@ import { actors, spawnFx, type Actor, type Loco } from "./actors";
 import { ease, timeline as tl } from "./timeline";
 import { fx } from "../fx/fx";
 import { sfx } from "@/audio/sfx";
+import { sideGlow } from "../pieces/materials";
 
 /* ------------------------------------------------------------------ */
 /* primitives                                                          */
@@ -15,7 +16,7 @@ const sq = (s: Square) => {
   return new THREE.Vector3(x, 0, z);
 };
 
-const glow = (a: Actor) => (a.color === "w" ? "#ffd27a" : "#ff5a2a");
+const glow = (a: Actor) => sideGlow[a.color];
 const magic = (a: Actor) => (a.color === "w" ? "#8fd8ff" : "#c06bff");
 
 function shortestAngle(from: number, to: number) {

@@ -96,3 +96,25 @@ export function materials(side: Side): MaterialSet {
   sets[side] = set;
   return set;
 }
+
+/** Live re-colour of an army's shared materials (instant, no rebuild). */
+export function applyArmyStyle(side: Side, style: { body: string; accent: string; cloth: string; glow: string }) {
+  const m = materials(side);
+  const body = new THREE.Color(style.body);
+  (m.body as THREE.MeshPhysicalMaterial).color.copy(body);
+  (m.accent as THREE.MeshStandardMaterial).color.set(style.accent);
+  const cloth = m.cloth as THREE.MeshPhysicalMaterial;
+  cloth.color.set(style.cloth);
+  cloth.sheenColor.set(style.cloth).lerp(new THREE.Color("#ffffff"), 0.35);
+  const glow = m.glow as THREE.MeshStandardMaterial;
+  glow.color.set(style.glow);
+  glow.emissive.set(style.glow);
+  // stone & fur follow the body tone
+  (m.stone as THREE.MeshPhysicalMaterial).color.copy(body).multiplyScalar(0.95);
+  const lum = body.r * 0.3 + body.g * 0.59 + body.b * 0.11;
+  (m.fur as THREE.MeshStandardMaterial).color.copy(body).lerp(new THREE.Color(lum > 0.4 ? "#ffffff" : "#77777f"), 0.5);
+  sideGlow[side] = style.glow;
+}
+
+/** Current glow colour per side (used by effects). */
+export const sideGlow: Record<Side, string> = { w: PALETTE.w.glow, b: PALETTE.b.glow };

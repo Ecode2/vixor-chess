@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame, isGameOver } from "@/game/store";
-import type { Color, PieceSymbol } from "@/game/types";
+import type { ArmyStyle, Color, PieceSymbol, PlayerType } from "@/game/types";
+import { ARMY_PRESETS, PRESET_IDS } from "@/game/armies";
 import { ENGINES } from "@/engine";
 import { unlockAudio } from "@/audio/sfx";
 
@@ -40,7 +41,13 @@ function TurnBanner() {
   }
   if (status.kind === "stalemate") text = "Stalemate";
   if (status.kind === "draw") text = `Draw · ${status.reason}`;
-  const sub = thinking ? `${ENGINES.find((e) => e.id === "random")?.name} is plotting…` : busy ? "Battle in progress…" : players[turn] === "engine" ? "Engine's turn" : "";
+  const engineError = useGame((s) => s.engineError);
+  const engineName = ENGINES.find((e) => e.id === players[turn])?.name ?? "Engine";
+  let sub = thinking ? `${engineName} is plotting…` : busy ? "Battle in progress…" : players[turn] !== "human" ? `${engineName}'s turn` : "";
+  if (engineError) {
+    sub = engineError;
+    tone = "danger";
+  }
 
   return (
     <div className={`turn-banner ${tone}`}>
@@ -84,11 +91,12 @@ function PlayerRow({ color }: { color: Color }) {
         <select
           className="player-select"
           value={players[color]}
-          onChange={(e) => setPlayer(color, e.target.value as "human" | "engine")}
+          onChange={(e) => setPlayer(color, e.target.value as PlayerType)}
           aria-label={`${side(color)} player`}
         >
           <option value="human">Human</option>
-          <option value="engine">Training Dummy (bot)</option>
+          <option value="stockfish">Stockfish</option>
+          <option value="random">Training Dummy</option>
         </select>
       </div>
       <Captured color={color} />
@@ -123,9 +131,16 @@ function History() {
 
 /* ------------------------------------------------------------------ */
 
+const SKILL_LABEL = (s: number) => {
+  if (s >= 20) return "Grandmaster+";
+  const elo = Math.round(1320 + (s / 19) * (3190 - 1320));
+  return `~${elo} Elo`;
+};
+
 function Settings({ onClose }: { onClose: () => void }) {
   const settings = useGame((s) => s.settings);
   const set = useGame((s) => s.setSettings);
+  const [tab, setTab] = useState<"game" | "armies" | "engine">("game");
   return (
     <div className="settings">
       <div className="settings-head">
@@ -134,38 +149,122 @@ function Settings({ onClose }: { onClose: () => void }) {
           ✕
         </button>
       </div>
-      <label className="row">
-        <span>Battle speed</span>
-        <input
-          type="range"
-          min={0.5}
-          max={3}
-          step={0.25}
-          value={settings.animSpeed}
-          onChange={(e) => set({ animSpeed: parseFloat(e.target.value) })}
-        />
-        <span className="val">{settings.animSpeed.toFixed(2)}×</span>
-      </label>
-      <Toggle label="Cinematic captures" value={settings.cinematic} onChange={(v) => set({ cinematic: v })} />
-      <Toggle label="Camera follows turn" value={settings.cameraFollow} onChange={(v) => set({ cameraFollow: v })} />
-      <Toggle label="Show legal moves" value={settings.showHints} onChange={(v) => set({ showHints: v })} />
-      <Toggle label="Sound" value={settings.sound} onChange={(v) => set({ sound: v })} />
-      <div className="row">
-        <span>Graphics</span>
-        <div className="seg">
-          {(["high", "low"] as const).map((q) => (
-            <button key={q} className={settings.quality === q ? "on" : ""} onClick={() => set({ quality: q })}>
-              {q === "high" ? "Cinematic" : "Performance"}
-            </button>
+      <div className="tabs">
+        {(["game", "armies", "engine"] as const).map((t) => (
+          <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
+            {t === "game" ? "Game" : t === "armies" ? "Armies" : "Engine"}
+          </button>
+        ))}
+      </div>
+      {tab === "game" && (
+        <>
+          <label className="row">
+            <span>Battle speed</span>
+            <input
+              type="range"
+              min={0.5}
+              max={3}
+              step={0.25}
+              value={settings.animSpeed}
+              onChange={(e) => set({ animSpeed: parseFloat(e.target.value) })}
+            />
+            <span className="val">{settings.animSpeed.toFixed(2)}×</span>
+          </label>
+          <Toggle label="Cinematic captures" value={settings.cinematic} onChange={(v) => set({ cinematic: v })} />
+          <Toggle label="Camera follows turn" value={settings.cameraFollow} onChange={(v) => set({ cameraFollow: v })} />
+          <Toggle label="Show legal moves" value={settings.showHints} onChange={(v) => set({ showHints: v })} />
+          <Toggle label="Pieces stand on bases" value={settings.bases} onChange={(v) => set({ bases: v })} />
+          <Toggle label="Sound" value={settings.sound} onChange={(v) => set({ sound: v })} />
+          <div className="row">
+            <span>Graphics</span>
+            <div className="seg">
+              {(["high", "low"] as const).map((q) => (
+                <button key={q} className={settings.quality === q ? "on" : ""} onClick={() => set({ quality: q })}>
+                  {q === "high" ? "Cinematic" : "Performance"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {tab === "armies" && (
+        <div className="armies">
+          {(["w", "b"] as const).map((c) => (
+            <ArmyEditor key={c} color={c} />
           ))}
         </div>
+      )}
+      {tab === "engine" && (
+        <>
+          <label className="row">
+            <span>Stockfish strength</span>
+            <input type="range" min={0} max={20} step={1} value={settings.engineSkill} onChange={(e) => set({ engineSkill: parseInt(e.target.value, 10) })} />
+            <span className="val wide">{SKILL_LABEL(settings.engineSkill)}</span>
+          </label>
+          <label className="row">
+            <span>Think time</span>
+            <input
+              type="range"
+              min={300}
+              max={5000}
+              step={100}
+              value={settings.engineThinkMs}
+              onChange={(e) => set({ engineThinkMs: parseInt(e.target.value, 10) })}
+            />
+            <span className="val">{(settings.engineThinkMs / 1000).toFixed(1)}s</span>
+          </label>
+          <p className="note">
+            Choose <strong>Stockfish</strong> for either side in the player panel. It runs locally in your browser (WebAssembly), so it
+            needs no server. Set both sides to an engine to watch a battle.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const ARMY_FIELDS: { key: keyof Omit<ArmyStyle, "preset">; label: string }[] = [
+  { key: "body", label: "Stone" },
+  { key: "accent", label: "Trim" },
+  { key: "cloth", label: "Cloth" },
+  { key: "glow", label: "Glow" },
+];
+
+function ArmyEditor({ color }: { color: Color }) {
+  const army = useGame((s) => s.settings.armies[color]);
+  const armies = useGame((s) => s.settings.armies);
+  const set = useGame((s) => s.setSettings);
+  const update = (patch: Partial<ArmyStyle>) => set({ armies: { ...armies, [color]: { ...army, ...patch } } });
+  return (
+    <div className="army">
+      <div className="army-head">
+        <Glyph kind="k" color={color} size={18} />
+        <span>{side(color)} army</span>
       </div>
-      <div className="engine-note">
-        <strong>Engines:</strong>{" "}
-        {ENGINES.map((e) => (
-          <span key={e.id} className={`chip ${e.available ? "" : "off"}`}>
-            {e.name}
-          </span>
+      <select
+        className="player-select full"
+        value={PRESET_IDS.includes(army.preset) ? army.preset : "custom"}
+        onChange={(e) => {
+          const p = ARMY_PRESETS[e.target.value];
+          if (p) update({ ...p[color] });
+        }}
+        aria-label={`${side(color)} army preset`}
+      >
+        {PRESET_IDS.map((id) => (
+          <option key={id} value={id}>
+            {ARMY_PRESETS[id].label}
+          </option>
+        ))}
+        <option value="custom" disabled>
+          Custom
+        </option>
+      </select>
+      <div className="swatches">
+        {ARMY_FIELDS.map((f) => (
+          <label key={f.key} className="swatch">
+            <input type="color" value={army[f.key]} onChange={(e) => update({ [f.key]: e.target.value, preset: "custom" })} />
+            <span>{f.label}</span>
+          </label>
         ))}
       </div>
     </div>
@@ -261,6 +360,10 @@ export function Hud({ ready }: { ready: boolean }) {
   const setViewSide = useGame((s) => s.setViewSide);
   const setSettings = useGame((s) => s.setSettings);
   const follow = useGame((s) => s.settings.cameraFollow);
+  const requestHint = useGame((s) => s.requestHint);
+  const hintLoading = useGame((s) => s.hintLoading);
+  const humanTurn = useGame((s) => s.players[s.turn] === "human");
+  const over = useGame((s) => isGameOver(s.status));
 
   return (
     <div className="hud" onPointerDown={unlockAudio}>
@@ -299,6 +402,9 @@ export function Hud({ ready }: { ready: boolean }) {
         </button>
         <button className="btn" onClick={undo} disabled={busy || !canUndo}>
           Undo
+        </button>
+        <button className="btn" onClick={requestHint} disabled={busy || hintLoading || !humanTurn || over} title="Ask Stockfish for the best move">
+          {hintLoading ? "…" : "Hint"}
         </button>
         <button
           className="btn"

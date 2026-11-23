@@ -10,6 +10,7 @@ import { useGame } from "@/game/store";
 import type { PieceData } from "@/game/types";
 import { unlockAudio, sfx } from "@/audio/sfx";
 import { fx } from "../fx/fx";
+import { sideGlow } from "../pieces/materials";
 
 function Piece({ data }: { data: PieceData }) {
   const rig = useMemo(() => buildRig(data.kind, data.color), [data.kind, data.color]);
@@ -58,7 +59,7 @@ function Piece({ data }: { data: PieceData }) {
       const before = actor.appear;
       actor.appear = Math.min(1, actor.appear + dt * 1.6);
       if (before === 0) {
-        fx.flash(actor.pos.clone().setY(0.6), actor.color === "w" ? "#ffd27a" : "#ff5a2a", 2.5, 0.8);
+        fx.flash(actor.pos.clone().setY(0.6), sideGlow[actor.color], 2.5, 0.8);
       }
     }
     updateActor(actor, dt);

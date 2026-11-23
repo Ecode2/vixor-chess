@@ -35,6 +35,7 @@ export function Markers() {
   const pieces = useGame((s) => s.pieces);
   const busy = useGame((s) => s.busy);
   const showHints = useGame((s) => s.settings.showHints);
+  const hint = useGame((s) => s.hint);
 
   const mats = useMemo(() => {
     const frame = squareFrameTexture();
@@ -66,6 +67,7 @@ export function Markers() {
       last: mk("#d9a441", null, 0.13, 1),
       hover: mk("#ffffff", frame, 0.35, 1),
       check: mk("#ff2a10", glowTexture(), 1, 3),
+      hint: mk("#3fe0c0", frame, 1, 2.2),
     };
   }, []);
 
@@ -115,6 +117,8 @@ export function Markers() {
         )}
       {hovered && !busy && hovered !== selected && (targets.has(hovered) || !selected) && plane(hovered, mats.hover, 0.98, "hov", false, Y + 0.001)}
       {kingSq && plane(kingSq, mats.check, 1.6, "chk", true, Y + 0.004)}
+      {hint && !busy && plane(hint.from, mats.hint, 0.98, "hf", true, Y + 0.005)}
+      {hint && !busy && plane(hint.to, mats.hint, 0.98, "ht", true, Y + 0.005)}
     </group>
   );
 }
