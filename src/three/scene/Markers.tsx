@@ -38,20 +38,31 @@ export function Markers() {
 
   const mats = useMemo(() => {
     const frame = squareFrameTexture();
-    const mk = (color: string, map: THREE.Texture | null, opacity = 1, mult = 2) =>
+    const mk = (color: string, map: THREE.Texture | null, opacity = 1, mult = 2, additive = true) =>
       new THREE.MeshBasicMaterial({
         color: new THREE.Color(color).multiplyScalar(mult),
         map,
         transparent: true,
         opacity,
         depthWrite: false,
-        blending: THREE.AdditiveBlending,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
         toneMapped: false,
       });
+    const dot = document.createElement("canvas");
+    dot.width = dot.height = 128;
+    const dctx = dot.getContext("2d")!;
+    const grad = dctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.42, "rgba(255,255,255,1)");
+    grad.addColorStop(0.5, "rgba(255,255,255,0.55)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    dctx.fillStyle = grad;
+    dctx.fillRect(0, 0, 128, 128);
+    const dotTex = new THREE.CanvasTexture(dot);
     return {
       sel: mk("#ffd27a", frame, 1, 2.5),
-      move: mk("#ffd27a", glowTexture(), 0.9, 1.6),
-      capture: mk("#ff4a2a", frame, 1, 2.2),
+      move: mk("#e0a83a", dotTex, 0.92, 1.25, false),
+      capture: mk("#ff3a1a", frame, 1, 1.6, false),
       last: mk("#d9a441", null, 0.13, 1),
       hover: mk("#ffffff", frame, 0.35, 1),
       check: mk("#ff2a10", glowTexture(), 1, 3),
@@ -100,7 +111,7 @@ export function Markers() {
       {showHints &&
         !busy &&
         legal.map((m) =>
-          m.captured ? plane(m.to, mats.capture, 0.96, "c" + m.to + m.promotion, true, Y + 0.003) : plane(m.to, mats.move, 0.42, "m" + m.to + m.promotion, true, Y + 0.003),
+          m.captured ? plane(m.to, mats.capture, 0.96, "c" + m.to + m.promotion, true, Y + 0.003) : plane(m.to, mats.move, 0.44, "m" + m.to + m.promotion, true, Y + 0.003),
         )}
       {hovered && !busy && hovered !== selected && (targets.has(hovered) || !selected) && plane(hovered, mats.hover, 0.98, "hov", false, Y + 0.001)}
       {kingSq && plane(kingSq, mats.check, 1.6, "chk", true, Y + 0.004)}

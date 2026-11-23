@@ -12,6 +12,7 @@ import { timeline } from "../anim/timeline";
 import { fx } from "../fx/fx";
 import { aftermath, perform } from "../anim/director";
 import { materials } from "../pieces/materials";
+import { glowTexture, smokeTexture } from "../textures";
 import { setSoundEnabled } from "@/audio/sfx";
 import { Board } from "./Board";
 import { Pieces } from "./Pieces";
@@ -112,22 +113,25 @@ function CameraRig() {
 
   // keep the whole board in frame on narrow / portrait screens
   useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
     const aspect = size.width / size.height;
-    const dist = aspect < 0.8 ? 18 : aspect < 1.2 ? 14.5 : 11.4;
+    const halfH = THREE.MathUtils.degToRad(cam.fov / 2);
+    const halfW = Math.atan(Math.tan(halfH) * aspect);
+    const dist = Math.min(28, Math.max(11.6, 5.0 / Math.tan(halfW)));
     const dir = camera.position.clone().normalize();
     camera.position.copy(dir.multiplyScalar(dist));
     controls.current?.update();
   }, [size.width, size.height, camera]);
 
-  // shift the projection so the HUD panel doesn't cover the board
+  // shift (not zoom) the projection so HUD panels don't cover the board
   const panelOpen = useGame((s) => s.panelOpen);
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
     const w = size.width, h = size.height;
     const mobile = w <= 820;
-    const dx = panelOpen && !mobile ? 284 : 0;
-    const dy = mobile ? (panelOpen ? 250 : 60) : 30;
-    cam.setViewOffset(w + dx, h + dy, dx, dy, w, h);
+    const sx = panelOpen && !mobile ? 140 : 0;
+    const sy = mobile ? (panelOpen ? 105 : 30) : 18;
+    cam.setViewOffset(w, h, sx, sy, w, h);
     cam.updateProjectionMatrix();
   }, [camera, size.width, size.height, panelOpen]);
 
@@ -152,7 +156,7 @@ function CameraRig() {
       makeDefault
       enablePan={false}
       minDistance={7}
-      maxDistance={24}
+      maxDistance={30}
       minPolarAngle={0.15}
       maxPolarAngle={1.32}
       enableDamping
@@ -203,6 +207,34 @@ function Prewarm() {
         }
       }
     }
+    // effect materials (beams, sprites, particles, cannonball)
+    const fxMats: THREE.Material[] = [
+      new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ toneMapped: false, transparent: true }),
+      new THREE.MeshStandardMaterial({ color: "#222", metalness: 0.8, roughness: 0.4 }),
+    ];
+    for (const m of fxMats) {
+      mats.push(m);
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.position.y = -5;
+      g.add(mesh);
+    }
+    const sm = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false });
+    mats.push(sm);
+    const sp = new THREE.Sprite(sm);
+    sp.position.y = -5;
+    g.add(sp);
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute("position", new THREE.Float32BufferAttribute([0, -5, 0], 3));
+    for (const [map, add] of [
+      [glowTexture(), true],
+      [smokeTexture(), false],
+    ] as const) {
+      const pm = new THREE.PointsMaterial({ map, transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, toneMapped: !add });
+      mats.push(pm);
+      g.add(new THREE.Points(pg, pm));
+    }
     scene.add(g);
     try {
       gl.compile(scene, camera);
@@ -241,10 +273,10 @@ export function Stage() {
       <directionalLight position={[-6, 5, -8]} intensity={1.2} color="#8fb0ff" />
       <spotLight position={[0, 12, 0]} angle={0.55} penumbra={0.9} intensity={40} decay={1.4} color="#fff0d8" />
       <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={1.6} position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[12, 12, 1]} color="#fff2dc" />
-        <Lightformer form="rect" intensity={2.2} position={[-7, 3, 2]} rotation-y={Math.PI / 2} scale={[6, 4, 1]} color="#ffd9a8" />
-        <Lightformer form="rect" intensity={1.6} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[6, 4, 1]} color="#9fb6ff" />
-        <Lightformer form="ring" intensity={1.6} position={[3, 5, 8]} scale={3} color="#ffffff" />
+        <Lightformer form="rect" intensity={1.2} position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[12, 12, 1]} color="#fff2dc" />
+        <Lightformer form="rect" intensity={1.1} position={[-7, 3, 2]} rotation-y={Math.PI / 2} scale={[6, 4, 1]} color="#ffd9a8" />
+        <Lightformer form="rect" intensity={0.7} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[6, 4, 1]} color="#9fb6ff" />
+        <Lightformer form="ring" intensity={1.0} position={[3, 5, 8]} scale={3} color="#ffffff" />
         <Lightformer form="rect" intensity={0.6} position={[0, -3, 0]} rotation-x={-Math.PI / 2} scale={[20, 20, 1]} color="#3a2a1a" />
       </Environment>
 
@@ -262,13 +294,13 @@ export function Stage() {
       {high ? (
         <EffectComposer multisampling={4}>
           <N8AO aoRadius={0.35} intensity={1.6} distanceFalloff={0.6} halfRes />
-          <Bloom mipmapBlur intensity={0.8} luminanceThreshold={1.35} luminanceSmoothing={0.3} />
+          <Bloom mipmapBlur intensity={0.8} luminanceThreshold={1.6} luminanceSmoothing={0.3} />
           <Vignette offset={0.28} darkness={0.72} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>
       ) : (
         <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur intensity={0.6} luminanceThreshold={1.35} luminanceSmoothing={0.3} />
+          <Bloom mipmapBlur intensity={0.6} luminanceThreshold={1.6} luminanceSmoothing={0.3} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>
       )}

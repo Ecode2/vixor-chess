@@ -153,7 +153,7 @@ export const useGame = create<GameState>((set, get) => {
     event: null,
     eventSeq: 0,
     viewSide: "w",
-    panelOpen: true,
+    panelOpen: typeof window === "undefined" ? true : window.innerWidth > 820,
     setPanelOpen(v) {
       set({ panelOpen: v });
     },

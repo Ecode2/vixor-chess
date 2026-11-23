@@ -696,7 +696,7 @@ body {
     height: 210px;
   }
   .panel:not(.open) {
-    transform: translateY(calc(100% + 76px));
+    transform: translateY(100%);
   }
   .panel-toggle {
     left: auto;
