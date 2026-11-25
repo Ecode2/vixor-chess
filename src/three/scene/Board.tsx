@@ -11,6 +11,7 @@ import { unlockAudio } from "@/audio/sfx";
 export function Board() {
   const clickSquare = useGame((s) => s.clickSquare);
   const setHovered = useGame((s) => s.setHovered);
+  const theme = useGame((s) => s.settings.theme);
 
   const { surfaceMat, frameTopMat, sideMat, goldMat } = useMemo(() => {
     const surfaceMat = new THREE.MeshPhysicalMaterial({
@@ -83,7 +84,7 @@ export function Board() {
       {/* stone floor */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.8, 0]} receiveShadow>
         <circleGeometry args={[40, 64]} />
-        <meshStandardMaterial color="#0d0c0b" roughness={0.9} />
+        <meshStandardMaterial color={theme === "day" ? "#7f776a" : "#0d0c0b"} roughness={0.9} />
       </mesh>
     </group>
   );

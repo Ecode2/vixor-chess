@@ -40,6 +40,7 @@ needed (framework preset: Next.js).
   red frames are captures.
 - Drag to orbit the camera, scroll/pinch to zoom.
 - **Hint** asks Stockfish for the best move and highlights it.
+- **☀ / ☾** (top-right) switches between a daylight sky and the night hall.
 - **Settings**
   - *Game*: battle speed, cinematic captures, camera follow, legal-move hints,
     bases on/off, sound, graphics quality (Cinematic / Performance).
@@ -93,10 +94,16 @@ src/
 
 ## Chess engine
 
-Stockfish 18 (lite, single-threaded WebAssembly, ~7 MB) runs in a Web Worker in
-the player's browser, so it needs no server and no special headers on Vercel.
-`scripts/copy-engine.mjs` copies it from `node_modules/stockfish` into
-`public/engines/` before `dev` and `build`.
+Stockfish 18 runs in a Web Worker in the player's browser, so it needs no
+server and no special headers on Vercel. Two builds live in `public/engines/`
+(committed, so deploys never depend on a build step):
+
+- WebAssembly lite (~7 MB): fast, used by default.
+- Pure JavaScript (~10 MB): slower but runs anywhere. "Auto" mode falls back
+  to it if WebAssembly is unavailable, fails or stalls (some iOS Safari setups).
+  It can also be forced in Settings > Engine > Compatibility.
+
+`scripts/copy-engine.mjs` refreshes them from `node_modules/stockfish`.
 
 Engines plug in through `src/engine/types.ts`:
 

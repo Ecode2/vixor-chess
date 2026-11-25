@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, OrbitControls, Sparkles } from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls, Sky, Sparkles } from "@react-three/drei";
 import { Bloom, EffectComposer, N8AO, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -18,6 +18,55 @@ import { setSoundEnabled } from "@/audio/sfx";
 import { Board } from "./Board";
 import { Pieces } from "./Pieces";
 import { Markers } from "./Markers";
+
+/* ------------------------------------------------------------------ */
+/* Scene themes                                                        */
+/* ------------------------------------------------------------------ */
+
+const THEMES = {
+  night: {
+    background: "#08080c",
+    fog: "#08080c",
+    fogNear: 18,
+    fogFar: 42,
+    hemiSky: "#c9d4ff",
+    hemiGround: "#2a1d12",
+    hemi: 0.5,
+    sun: 2.6,
+    sunColor: "#ffe5c2",
+    sunPos: [5, 11, 6] as [number, number, number],
+    rim: 1.6,
+    rimColor: "#8fb0ff",
+    spot: 40,
+    env: [1.2, 1.1, 0.8, 1.0, 0.6],
+    envTop: "#fff2dc",
+    envGround: "#3a2a1a",
+    bloom: 0.8,
+    bloomThreshold: 1.6,
+    vignette: 0.72,
+  },
+  day: {
+    background: "#9fc3e6",
+    fog: "#b9d2ea",
+    fogNear: 26,
+    fogFar: 75,
+    hemiSky: "#dcebff",
+    hemiGround: "#9c8a6c",
+    hemi: 1.15,
+    sun: 3.2,
+    sunColor: "#fff3e0",
+    sunPos: [6, 12, 8] as [number, number, number],
+    rim: 1.4,
+    rimColor: "#d6e4ff",
+    spot: 0,
+    env: [2.4, 1.6, 1.4, 1.3, 1.0],
+    envTop: "#ffffff",
+    envGround: "#d8c8a8",
+    bloom: 0.35,
+    bloomThreshold: 2.2,
+    vignette: 0.35,
+  },
+} as const;
 
 /* ------------------------------------------------------------------ */
 /* Director driver: runs choreography for store events                 */
@@ -268,31 +317,36 @@ function Prewarm() {
 
 export function Stage() {
   const quality = useGame((s) => s.settings.quality);
+  const theme = useGame((s) => s.settings.theme);
   const high = quality === "high";
+  const T = THEMES[theme];
   return (
     <>
-      <color attach="background" args={["#08080c"]} />
-      <fog attach="fog" args={["#08080c", 18, 42]} />
-      <hemisphereLight args={["#c9d4ff", "#2a1d12", 0.35]} />
+      <color attach="background" args={[T.background]} />
+      <fog attach="fog" args={[T.fog, T.fogNear, T.fogFar]} />
+      {theme === "day" && (
+        <Sky distance={100} sunPosition={[40, 18, 55]} turbidity={2.2} rayleigh={2.6} mieCoefficient={0.003} mieDirectionalG={0.8} />
+      )}
+      <hemisphereLight args={[T.hemiSky, T.hemiGround, T.hemi]} />
       <directionalLight
         castShadow
-        position={[5, 11, 6]}
-        intensity={2.6}
-        color="#ffe5c2"
+        position={T.sunPos}
+        intensity={T.sun}
+        color={T.sunColor}
         shadow-mapSize={high ? [2048, 2048] : [1024, 1024]}
         shadow-bias={-0.0003}
         shadow-normalBias={0.02}
       >
         <orthographicCamera attach="shadow-camera" args={[-6.5, 6.5, 6.5, -6.5, 1, 30]} />
       </directionalLight>
-      <directionalLight position={[-6, 5, -8]} intensity={1.2} color="#8fb0ff" />
-      <spotLight position={[0, 12, 0]} angle={0.55} penumbra={0.9} intensity={40} decay={1.4} color="#fff0d8" />
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={1.2} position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[12, 12, 1]} color="#fff2dc" />
-        <Lightformer form="rect" intensity={1.1} position={[-7, 3, 2]} rotation-y={Math.PI / 2} scale={[6, 4, 1]} color="#ffd9a8" />
-        <Lightformer form="rect" intensity={0.7} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[6, 4, 1]} color="#9fb6ff" />
-        <Lightformer form="ring" intensity={1.0} position={[3, 5, 8]} scale={3} color="#ffffff" />
-        <Lightformer form="rect" intensity={0.6} position={[0, -3, 0]} rotation-x={-Math.PI / 2} scale={[20, 20, 1]} color="#3a2a1a" />
+      <directionalLight position={[-6, 6, -8]} intensity={T.rim} color={T.rimColor} />
+      <spotLight position={[0, 12, 0]} angle={0.55} penumbra={0.9} intensity={T.spot} decay={1.4} color="#fff0d8" />
+      <Environment key={theme} resolution={256} frames={1}>
+        <Lightformer form="rect" intensity={T.env[0]} position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[12, 12, 1]} color={T.envTop} />
+        <Lightformer form="rect" intensity={T.env[1]} position={[-7, 3, 2]} rotation-y={Math.PI / 2} scale={[6, 4, 1]} color="#ffd9a8" />
+        <Lightformer form="rect" intensity={T.env[2]} position={[7, 3, -3]} rotation-y={-Math.PI / 2} scale={[6, 4, 1]} color="#9fb6ff" />
+        <Lightformer form="ring" intensity={T.env[3]} position={[3, 5, 8]} scale={3} color="#ffffff" />
+        <Lightformer form="rect" intensity={T.env[4]} position={[0, -3, 0]} rotation-x={-Math.PI / 2} scale={[20, 20, 1]} color={T.envGround} />
       </Environment>
 
       <CameraRig />
@@ -305,18 +359,22 @@ export function Stage() {
         <Pieces />
         <DirectorDriver />
       </Shaker>
-      <Sparkles count={high ? 90 : 40} scale={[16, 5, 16]} position={[0, 2.5, 0]} size={2.2} speed={0.25} opacity={0.5} color="#ffcf8a" />
+      {theme === "night" ? (
+        <Sparkles count={high ? 90 : 40} scale={[16, 5, 16]} position={[0, 2.5, 0]} size={2.2} speed={0.25} opacity={0.5} color="#ffcf8a" />
+      ) : (
+        <Sparkles count={high ? 40 : 20} scale={[16, 5, 16]} position={[0, 2.5, 0]} size={1.4} speed={0.15} opacity={0.25} color="#ffffff" />
+      )}
 
       {high ? (
         <EffectComposer multisampling={4}>
           <N8AO aoRadius={0.35} intensity={1.6} distanceFalloff={0.6} halfRes />
-          <Bloom mipmapBlur intensity={0.8} luminanceThreshold={1.6} luminanceSmoothing={0.3} />
-          <Vignette offset={0.28} darkness={0.72} />
+          <Bloom mipmapBlur intensity={T.bloom} luminanceThreshold={T.bloomThreshold} luminanceSmoothing={0.3} />
+          <Vignette offset={0.28} darkness={T.vignette} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>
       ) : (
         <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur intensity={0.6} luminanceThreshold={1.6} luminanceSmoothing={0.3} />
+          <Bloom mipmapBlur intensity={T.bloom * 0.75} luminanceThreshold={T.bloomThreshold} luminanceSmoothing={0.3} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>
       )}

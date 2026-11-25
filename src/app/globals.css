@@ -700,6 +700,9 @@ body {
   .panel:not(.open) {
     transform: translateY(100%);
   }
+  .panel:not(.open) .panel-body {
+    visibility: hidden;
+  }
   .panel-toggle {
     left: auto;
     right: 12px;
@@ -903,4 +906,31 @@ body {
 
 .engine-status.error .wide2 {
   color: var(--danger);
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--gold-hi);
+  font-size: 19px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 820px) {
+  .theme-toggle {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
 }

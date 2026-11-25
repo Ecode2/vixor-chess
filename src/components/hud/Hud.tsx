@@ -170,6 +170,21 @@ function Settings({ onClose }: { onClose: () => void }) {
       </div>
       {tab === "game" && (
         <>
+          <div className="row">
+            <span>Scene</span>
+            <div className="seg">
+              {(
+                [
+                  ["day", "☀ Day"],
+                  ["night", "☾ Night"],
+                ] as const
+              ).map(([v, label]) => (
+                <button key={v} className={settings.theme === v ? "on" : ""} onClick={() => set({ theme: v })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="row">
             <span>Battle speed</span>
             <input
@@ -399,6 +414,21 @@ function GameOver() {
 
 /* ------------------------------------------------------------------ */
 
+function ThemeToggle() {
+  const theme = useGame((s) => s.settings.theme);
+  const set = useGame((s) => s.setSettings);
+  return (
+    <button
+      className="theme-toggle"
+      onClick={() => set({ theme: theme === "day" ? "night" : "day" })}
+      aria-label={theme === "day" ? "Switch to night" : "Switch to day"}
+      title={theme === "day" ? "Switch to night" : "Switch to day"}
+    >
+      {theme === "day" ? "☾" : "☀"}
+    </button>
+  );
+}
+
 function Loading() {
   const status = useModels((s) => s.status);
   const progress = useModels((s) => s.progress);
@@ -474,6 +504,7 @@ export function Hud({ ready }: { ready: boolean }) {
       <div className="top-center">
         <TurnBanner />
       </div>
+      <ThemeToggle />
 
       <aside className={`panel ${panelOpen ? "open" : ""}`}>
         <button className="panel-toggle" onClick={() => setPanelOpen(!panelOpen)} aria-label="Toggle panel">
