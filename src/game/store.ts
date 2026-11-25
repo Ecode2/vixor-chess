@@ -76,7 +76,7 @@ const DEFAULT_SETTINGS: Settings = {
   animSpeed: 1,
   cinematic: true,
   cameraFollow: true,
-  quality: "high",
+  quality: typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches && window.innerWidth <= 820 ? "low" : "high",
   sound: true,
   showHints: true,
   engineSkill: 8,

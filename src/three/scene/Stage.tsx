@@ -8,6 +8,7 @@ import { Bloom, EffectComposer, N8AO, ToneMapping, Vignette } from "@react-three
 import { ToneMappingMode } from "postprocessing";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useGame, isGameOver } from "@/game/store";
+import { HUD_METRICS, layoutFor, type LayoutMode } from "@/game/layout";
 import { timeline } from "../anim/timeline";
 import { renderOpts } from "../anim/actors";
 import { fx } from "../fx/fx";
@@ -161,26 +162,53 @@ function CameraRig() {
     anim.current = { from: cur, to: cur + d, t: 0 };
   }, [side]);
 
-  // keep the whole board in frame on narrow / portrait screens
+  // Frame the board for the current layout. The viewing angle is only reset
+  // when the layout class changes (so the user's orbit survives URL-bar
+  // resizes); distance always follows the screen shape.
+  const layoutRef = useRef<LayoutMode | null>(null);
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
-    const aspect = size.width / size.height;
+    const mode = layoutFor(size.width, size.height);
+    const target = controls.current?.target ?? new THREE.Vector3(0, 0.3, 0);
+    const offset = camera.position.clone().sub(target);
+    const sp = new THREE.Spherical().setFromVector3(offset);
+    if (layoutRef.current !== mode) {
+      layoutRef.current = mode;
+      // portrait: look down more steeply so the board fills the tall screen
+      sp.phi = mode === "portrait" ? 0.7 : mode === "landscape" ? 0.98 : 0.84;
+    }
     const halfH = THREE.MathUtils.degToRad(cam.fov / 2);
-    const halfW = Math.atan(Math.tan(halfH) * aspect);
-    const dist = Math.min(28, Math.max(11.6, 5.0 / Math.tan(halfW)));
-    const dir = camera.position.clone().normalize();
-    camera.position.copy(dir.multiplyScalar(dist));
+    const usableW = mode === "landscape" ? size.width - HUD_METRICS.landscapeRail : size.width;
+    const usableH = mode === "portrait" ? size.height - HUD_METRICS.portraitTop - HUD_METRICS.portraitBottom : mode === "landscape" ? size.height - 44 : size.height;
+    const halfW = Math.atan(Math.tan(halfH) * (usableW / size.height));
+    const halfHu = Math.atan(Math.tan(halfH) * (usableH / size.height));
+    let dist: number;
+    if (mode === "portrait") dist = Math.max(10.5, 4.75 / Math.tan(halfW), 5.0 / Math.tan(halfHu));
+    else if (mode === "landscape") dist = Math.max(11.6, 5.0 / Math.tan(halfW), 4.7 / Math.tan(halfHu));
+    else dist = Math.max(11.6, 5.0 / Math.tan(halfW));
+    sp.radius = Math.min(30, dist);
+    camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(sp));
     controls.current?.update();
   }, [size.width, size.height, camera]);
 
-  // shift (not zoom) the projection so HUD panels don't cover the board
+  // shift (not zoom) the projection so HUD chrome doesn't cover the board
   const panelOpen = useGame((s) => s.panelOpen);
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
     const w = size.width, h = size.height;
-    const mobile = w <= 820;
-    const sx = panelOpen && !mobile ? 140 : 0;
-    const sy = mobile ? (panelOpen ? 105 : 30) : 18;
+    const mode = layoutFor(w, h);
+    let sx = 0, sy = 0;
+    if (mode === "desktop") {
+      sx = panelOpen ? HUD_METRICS.desktopPanel / 2 : 0;
+      sy = 18;
+    } else if (mode === "portrait") {
+      // centre the board between the top bar and the toolbar (or the open sheet)
+      const bottom = panelOpen ? Math.min(h * 0.42, 360) + 76 : HUD_METRICS.portraitBottom;
+      sy = (bottom - HUD_METRICS.portraitTop) / 2;
+    } else {
+      sx = -HUD_METRICS.landscapeRail / 2 + (panelOpen ? 120 : 0);
+      sy = -14;
+    }
     cam.setViewOffset(w, h, sx, sy, w, h);
     cam.updateProjectionMatrix();
   }, [camera, size.width, size.height, panelOpen]);

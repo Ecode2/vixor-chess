@@ -7,6 +7,29 @@ import { ARMY_PRESETS, PRESET_IDS } from "@/game/armies";
 import { ENGINES } from "@/engine";
 import { unlockAudio } from "@/audio/sfx";
 import { useModels } from "@/three/external/loader";
+import { useLayoutMode } from "@/game/layout";
+
+/* ------------------------------------------------------------------ */
+/* toolbar icons (inline SVG, inherit currentColor)                    */
+/* ------------------------------------------------------------------ */
+
+const ICON_PATHS: Record<string, string> = {
+  new: "M5 19 19 5M14 5h5v5M5 5l5 5M14 14l5 5M5 19v-4M5 19h4",
+  undo: "M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3",
+  hint: "M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z",
+  flip: "M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4",
+  settings:
+    "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z",
+  moves: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
+};
+
+function Icon({ name }: { name: keyof typeof ICON_PATHS }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
 const GLYPH: Record<PieceSymbol, string> = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
 const NAME: Record<PieceSymbol, string> = { k: "King", q: "Queen", r: "Rook", b: "Bishop", n: "Knight", p: "Pawn" };
@@ -490,12 +513,30 @@ export function Hud({ ready }: { ready: boolean }) {
   const hintLoading = useGame((s) => s.hintLoading);
   const humanTurn = useGame((s) => s.players[s.turn] === "human");
   const over = useGame((s) => isGameOver(s.status));
+  const mode = useLayoutMode();
+  const compact = mode !== "desktop";
+
+  // On small screens the sheets would overlap: only one at a time.
+  const toggleSettings = () => {
+    const next = !showSettings;
+    setShowSettings(next);
+    if (next && compact) setPanelOpen(false);
+  };
+  const togglePanel = () => {
+    const next = !panelOpen;
+    setPanelOpen(next);
+    if (next && compact) setShowSettings(false);
+  };
+  // Entering a compact layout starts with the board unobstructed.
+  useEffect(() => {
+    if (compact) setPanelOpen(false);
+  }, [compact, setPanelOpen]);
 
   return (
-    <div className="hud" onPointerDown={unlockAudio}>
+    <div className={`hud m-${mode}`} onPointerDown={unlockAudio}>
       <header className="brand">
         <div className="brand-mark">V</div>
-        <div>
+        <div className="brand-text">
           <div className="brand-title">VIXOR CHESS</div>
           <div className="brand-sub">by Vixor Software Agency</div>
         </div>
@@ -506,8 +547,8 @@ export function Hud({ ready }: { ready: boolean }) {
       </div>
       <ThemeToggle />
 
-      <aside className={`panel ${panelOpen ? "open" : ""}`}>
-        <button className="panel-toggle" onClick={() => setPanelOpen(!panelOpen)} aria-label="Toggle panel">
+      <aside className={`panel ${panelOpen ? "open" : ""}`} aria-hidden={!panelOpen && compact}>
+        <button className="panel-toggle" onClick={togglePanel} aria-label="Toggle panel">
           {panelOpen ? "›" : "‹"}
         </button>
         <div className="panel-body">
@@ -520,30 +561,43 @@ export function Hud({ ready }: { ready: boolean }) {
 
       <nav className="toolbar">
         <button
-          className="btn gold"
+          className="btn gold tb"
           onClick={() => {
             if (useGame.getState().history.length === 0 || confirm("Abandon this battle and start anew?")) newGame();
           }}
+          aria-label="New battle"
         >
-          New battle
+          <Icon name="new" />
+          <span className="tb-label">{compact ? "New" : "New battle"}</span>
         </button>
-        <button className="btn" onClick={undo} disabled={busy || !canUndo}>
-          Undo
+        <button className="btn tb" onClick={undo} disabled={busy || !canUndo} aria-label="Undo">
+          <Icon name="undo" />
+          <span className="tb-label">Undo</span>
         </button>
-        <button className="btn" onClick={requestHint} disabled={busy || hintLoading || !humanTurn || over} title="Ask Stockfish for the best move">
-          {hintLoading ? "…" : "Hint"}
+        <button className="btn tb" onClick={requestHint} disabled={busy || hintLoading || !humanTurn || over} title="Ask Stockfish for the best move" aria-label="Hint">
+          <Icon name="hint" />
+          <span className="tb-label">{hintLoading ? "…" : "Hint"}</span>
         </button>
         <button
-          className="btn"
+          className="btn tb"
           onClick={() => {
             if (follow) setSettings({ cameraFollow: false });
             setViewSide(viewSide === "w" ? "b" : "w");
           }}
+          aria-label="Flip view"
         >
-          Flip view
+          <Icon name="flip" />
+          <span className="tb-label">{compact ? "Flip" : "Flip view"}</span>
         </button>
-        <button className="btn" onClick={() => setShowSettings((v) => !v)}>
-          Settings
+        {compact && (
+          <button className={`btn tb ${panelOpen ? "on" : ""}`} onClick={togglePanel} aria-label="Moves and players">
+            <Icon name="moves" />
+            <span className="tb-label">Moves</span>
+          </button>
+        )}
+        <button className={`btn tb ${showSettings ? "on" : ""}`} onClick={toggleSettings} aria-label="Settings">
+          <Icon name="settings" />
+          <span className="tb-label">Settings</span>
         </button>
       </nav>
 
