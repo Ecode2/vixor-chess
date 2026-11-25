@@ -886,3 +886,21 @@ body {
 .note a {
   color: var(--gold-hi);
 }
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 10px;
+  margin-left: 6px;
+}
+
+.engine-status .wide2 {
+  width: auto;
+  max-width: 230px;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.engine-status.error .wide2 {
+  color: var(--danger);
+}

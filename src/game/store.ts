@@ -13,7 +13,7 @@ import type {
   Settings,
   Square,
 } from "./types";
-import { getEngine } from "@/engine";
+import { engineConfig, getEngine, resetEngine, type EngineStatus } from "@/engine";
 import { ARMY_PRESETS } from "./armies";
 
 interface Snapshot {
@@ -46,7 +46,10 @@ export interface GameState {
   hint: { from: Square; to: Square } | null;
   hintLoading: boolean;
   engineError: string | null;
+  engineStatus: EngineStatus;
   requestHint(): void;
+  /** Clear an engine error and let the engine try again. */
+  retryEngine(): void;
   settings: Settings;
   event: MoveEvent | null;
   eventSeq: number;
@@ -78,6 +81,8 @@ const DEFAULT_SETTINGS: Settings = {
   showHints: true,
   engineSkill: 8,
   engineThinkMs: 1000,
+  engineBuild: "auto",
+  theme: "night",
   bases: false,
   armies: { w: { ...ARMY_PRESETS.royal.w }, b: { ...ARMY_PRESETS.royal.b } },
 };
@@ -121,6 +126,7 @@ function loadSettings(): Settings {
 
 export const useGame = create<GameState>((set, get) => {
   const chess = new Chess();
+  engineConfig.onStockfishStatus = (st) => set({ engineStatus: st, ...(st.state === "ready" ? { engineError: null } : {}) });
 
   const maybeEngineTurn = () => {
     const s = get();
@@ -139,9 +145,11 @@ export const useGame = create<GameState>((set, get) => {
       })
       .catch((err) => {
         console.error("[engine]", err);
-        set({ thinking: false, engineError: `${player} engine failed: ${err?.message ?? err}` });
+        set({ thinking: false, engineError: `${player === "stockfish" ? "Stockfish" : "Engine"} failed: ${err?.message ?? err}` });
       });
   };
+
+  engineConfig.stockfishBuild = loadSettings().engineBuild;
 
   return {
     chess,
@@ -164,6 +172,12 @@ export const useGame = create<GameState>((set, get) => {
     hint: null,
     hintLoading: false,
     engineError: null,
+    engineStatus: { state: "idle" },
+
+    retryEngine() {
+      set({ engineError: null, thinking: false });
+      maybeEngineTurn();
+    },
 
     requestHint() {
       const s = get();
@@ -404,7 +418,13 @@ export const useGame = create<GameState>((set, get) => {
     },
 
     setSettings(patch) {
-      const settings = { ...get().settings, ...patch };
+      const prev = get().settings;
+      const settings = { ...prev, ...patch };
+      if (patch.engineBuild && patch.engineBuild !== prev.engineBuild) {
+        engineConfig.stockfishBuild = patch.engineBuild;
+        resetEngine("stockfish");
+        set({ engineStatus: { state: "idle" }, engineError: null });
+      }
       set({ settings });
       try {
         window.localStorage.setItem("vixor-chess-settings", JSON.stringify(settings));

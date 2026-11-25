@@ -43,8 +43,14 @@ function TurnBanner() {
   if (status.kind === "stalemate") text = "Stalemate";
   if (status.kind === "draw") text = `Draw · ${status.reason}`;
   const engineError = useGame((s) => s.engineError);
+  const engineStatus = useGame((s) => s.engineStatus);
+  const retryEngine = useGame((s) => s.retryEngine);
   const engineName = ENGINES.find((e) => e.id === players[turn])?.name ?? "Engine";
   let sub = thinking ? `${engineName} is plotting…` : busy ? "Battle in progress…" : players[turn] !== "human" ? `${engineName}'s turn` : "";
+  if (thinking && players[turn] === "stockfish" && engineStatus.state === "loading") {
+    const pct = engineStatus.progress !== undefined && engineStatus.progress > 0 ? ` ${Math.round(engineStatus.progress * 100)}%` : "";
+    sub = engineStatus.build === "asm" ? `Loading Stockfish (compatibility mode)…${pct}` : `Loading Stockfish…${pct}`;
+  }
   if (engineError) {
     sub = engineError;
     tone = "danger";
@@ -57,6 +63,11 @@ function TurnBanner() {
         <div className="turn-text">{text}</div>
         {sub && <div className="turn-sub">{sub}</div>}
       </div>
+      {engineError && players[turn] !== "human" && (
+        <button className="btn small" onClick={retryEngine}>
+          Retry
+        </button>
+      )}
     </div>
   );
 }
@@ -218,12 +229,47 @@ function Settings({ onClose }: { onClose: () => void }) {
             />
             <span className="val">{(settings.engineThinkMs / 1000).toFixed(1)}s</span>
           </label>
+          <div className="row">
+            <span>Engine build</span>
+            <div className="seg">
+              {(
+                [
+                  ["auto", "Auto"],
+                  ["wasm", "Fast"],
+                  ["asm", "Compatibility"],
+                ] as const
+              ).map(([v, label]) => (
+                <button key={v} className={settings.engineBuild === v ? "on" : ""} onClick={() => set({ engineBuild: v })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <EngineStatusLine />
           <p className="note">
             Choose <strong>Stockfish</strong> for either side in the player panel. It runs locally in your browser (WebAssembly), so it
             needs no server. Set both sides to an engine to watch a battle.
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+function EngineStatusLine() {
+  const st = useGame((s) => s.engineStatus);
+  const label =
+    st.state === "ready"
+      ? `Ready · ${st.build === "asm" ? "JavaScript (compatibility)" : "WebAssembly"}`
+      : st.state === "loading"
+        ? `Loading ${st.build === "asm" ? "compatibility build" : "engine"}${st.progress ? ` · ${Math.round(st.progress * 100)}%` : "…"}`
+        : st.state === "error"
+          ? st.message ?? "Failed to start"
+          : "Not loaded yet (starts when Stockfish plays or you ask for a hint)";
+  return (
+    <div className={`row engine-status ${st.state}`}>
+      <span>Status</span>
+      <span className="val wide2">{label}</span>
     </div>
   );
 }

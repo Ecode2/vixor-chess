@@ -1,5 +1,6 @@
-// Copies the Stockfish WASM engine (lite, single-threaded: ~7MB, no special
-// headers needed) from node_modules into /public so it is served statically.
+// Refreshes the Stockfish builds in /public/engines from node_modules.
+// The files are also committed to git, so deployments never depend on this
+// step having run - it just keeps them in sync after `npm update stockfish`.
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ const dest = join(root, "public", "engines");
 const files = [
   ["bin/stockfish-18-lite-single.js", "stockfish-18-lite-single.js"],
   ["bin/stockfish-18-lite-single.wasm", "stockfish-18-lite-single.wasm"],
+  ["bin/stockfish-18-asm.js", "stockfish-18-asm.js"],
   ["Copying.txt", "STOCKFISH-LICENSE.txt"],
 ];
 

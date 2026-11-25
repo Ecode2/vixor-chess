@@ -53,6 +53,10 @@ export interface Settings {
   engineSkill: number;
   /** Engine think time per move (ms) */
   engineThinkMs: number;
+  /** Which Stockfish build to load: auto (WASM, falls back to JS), wasm, asm */
+  engineBuild: "auto" | "wasm" | "asm";
+  /** Scene lighting / sky */
+  theme: "night" | "day";
   /** Show plinths under the (procedural) pieces */
   bases: boolean;
   armies: Record<"w" | "b", ArmyStyle>;
